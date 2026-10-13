@@ -1,136 +1,98 @@
-# Daily_Content_Creation_Agent 🎬✨
+# Daily_Content_Creation_Agent 🎬
 
-[![Author](https://img.shields.io/badge/Author-Bhagirath%20Argade-f59e0b?style=for-the-badge&logo=github)](https://github.com/BhagirathArgade)
-[![Multi-Agent AI](https://img.shields.io/badge/Architecture-3--Agent%20Autonomous%20System-6366f1?style=for-the-badge)](https://github.com/BhagirathArgade/Daily_Content_Creation_Agent)
-[![License: MIT](https://img.shields.io/badge/License-MIT-rose?style=for-the-badge)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Instagram%20Reels%20%7C%20TikTok%20%7C%20Shorts-ec4899?style=for-the-badge)](https://instagram.com)
+> Type a song name → pick the right YouTube upload → the agents find the most viral moment, cut it, and build an aesthetic 9:16 reel whose images match the lyrics. Don't like the visuals? Regenerate new images for the same lyrics in one click.
 
-> **Autonomous Multi-Agent AI System** engineered to create daily viral Instagram Reels, TikTok videos, and YouTube Shorts from any song and movie input. Built with a 3-agent pipeline, kinetic typography engine, unified aesthetic visual synthesis, and an advanced interactive web dashboard.
+**Author:** [Bhagirath Argade](https://github.com/BhagirathArgade)
 
----
+## How it works
 
-## 👑 Author Credit
-- **Architect & Developer:** [Bhagirath Argade](https://github.com/BhagirathArgade)
-- **Repository:** [`https://github.com/BhagirathArgade/Daily_Content_Creation_Agent`](https://github.com/BhagirathArgade/Daily_Content_Creation_Agent)
-
----
-
-## 🧠 System Architecture: 3-Agent Collaborative Pipeline
-
-The system is powered by three specialized AI models/agents working in a synchronous assembly line:
-
-```mermaid
-flowchart LR
-    A["User Input\n(Song & Movie Name)"] --> B["Agent 1: Viral Audio Cutter"]
-    B -->|"Viral Sweet Spot (15-30s)\nBPM, Virality Score, Timestamps"| C["Agent 2: Aesthetic Storyboarder"]
-    C -->|"Rhythmic Mini-Sentences\nUnified Aesthetic 9:16 Assets"| D["Agent 3: Video Compositor"]
-    D --> E["Ready-to-Post Reel (9:16)\n+ Viral Hook Caption & Hashtags"]
+```
+song name ──► YouTube suggestions ──► pick one
+                                        │
+                 ┌──────────────────────┴──────────────────────┐
+                 │ Agent 1 · Viral Cutter  (Claude Sonnet 5.5) │
+                 │  • downloads audio (yt-dlp)                 │
+                 │  • fetches time-synced lyrics (lrclib.net)  │
+                 │  • picks the most viral 15–30 s window      │
+                 │  • cuts the exact clip                      │
+                 └──────────────────────┬──────────────────────┘
+                 ┌──────────────────────┴──────────────────────┐
+                 │ Agent 2 · Aesthetic Storyboarder (Sonnet 5.5)│
+                 │  • splits the clip's lyric lines into caption│
+                 │    phrases (exact words, timed to the audio) │
+                 │  • writes ONE style bible for every image   │
+                 │  • one image per phrase (Pollinations.ai)   │
+                 │  • 🔁 Regenerate: same lyrics, new seed      │
+                 └──────────────────────┬──────────────────────┘
+                 ┌──────────────────────┴──────────────────────┐
+                 │ Agent 3 · Composer                          │
+                 │  • 9:16 MP4: images + captions + hook audio │
+                 │  • caption + hashtags for posting           │
+                 └─────────────────────────────────────────────┘
 ```
 
-### 1. 🎵 Agent 1: Viral Audio & Hook Extractor
-- **Role:** Pinpoints the exact 15–30 second viral sweet spot of any song.
-- **Virality Engine:** Analyzes harmonic build-ups, chorus drops, and dynamic energy curves.
-- **Output:** Start/end timestamps, BPM calculation, virality rating (0–100), energy level, and audio clip extraction.
+**Works without any API key.** Without `ANTHROPIC_API_KEY`, Agent 1 uses a chorus finder (lyric lines that repeat score higher) and Agent 2 uses a rule-based caption split. The web app shows which brain ran for each step.
 
-### 2. 🎨 Agent 2: Lyrical Breakdown & Aesthetic Storyboarder
-- **Role:** Segments the viral hook into meaningful mini-sentences and synchronized micro-timestamps.
-- **Aesthetic DNA Enforcement:** Guarantees that **all scenes adhere strictly to the exact same visual tone, color grading, lighting, and camera lens style**.
-- **Vibe Themes:**
-  - 🌧️ *Moody Monsoon 35mm Film* (Rain-streaked neon, 35mm film grain, Wong Kar-wai color tones)
-  - 🌅 *Golden Hour Nostalgia* (Kodak Portra 400 warmth, hazy sunset flares, poetic intimacy)
-  - 🌆 *Cyber Lofi Midnight Neon* (Tokyo rainy neon, purple-cyan electric haze, analog VHS texture)
-  - ☕ *Dark Academia Vintage* (Candlelit warmth, antique mahogany, poetic solitude)
-  - 🌌 *Anime Makoto Shinkai Dream* (Ethereal twilight clouds, radiant stars, crystalline sky)
-- **Asset Synthesis:** Generates generative AI prompts and retrieves high-res 9:16 vertical aesthetic imagery from the web.
+## Quick start
 
-### 3. 🎬 Agent 3: Kinetic Video Compositor & Content Ready Publisher
-- **Role:** Composites the audio and aesthetic visual scenes into a finished 9:16 vertical Instagram Reel.
-- **Kinetic Typography:** Adds animated lyric typography with customizable styles:
-  - ⚡ *Kinetic Karaoke Glow* (Word-by-word pulse)
-  - 🎬 *Cinematic 35mm Film Subtitle* (Centered serif)
-  - 💥 *TikTok Bold Punch* (Dynamic pop-in)
-  - 🖋️ *Minimalist Typewriter*
-- **Instagram Growth Engine:**
-  - High-converting viral hook captions
-  - Multi-tier hashtag clusters (Mass reach + Aesthetic niche + Song-specific)
-  - Algorithm-optimized posting time recommendations (e.g., 7:15 PM IST)
-
----
-
-## 🌟 Features
-
-- ⚡ **Interactive Web Dashboard:** Modern, glassmorphism web interface with real-time multi-agent execution tracking.
-- 📱 **Real-Time 9:16 Reel Player:** Live HTML5 Canvas preview player rendering animated lyrics, Ken Burns camera zooms, and synthesized audio.
-- 📥 **1-Click Reel Export:** Direct browser-based WebM/MP4 video download using WebCodecs & Canvas capture.
-- 📋 **Viral Caption Hub:** Instant 1-click copy for captions, hashtags, and credits.
-- 🛠️ **CLI & Python API:** Run programmatically via command line or REST API.
-
----
-
-## 🚀 Quick Start Guide
-
-### 1. Clone the Repository
 ```bash
 git clone https://github.com/BhagirathArgade/Daily_Content_Creation_Agent.git
 cd Daily_Content_Creation_Agent
+pip install -r requirements.txt        # needs ffmpeg on your PATH
+cp .env.example .env                   # optional: add ANTHROPIC_API_KEY
+python run.py                          # open http://localhost:8000
 ```
 
-### 2. Install Dependencies
+Then type the song name, choose a suggestion, pick a vibe, and press **Generate**. When the reel is ready, press **Regenerate visuals** for new images with the same lyrics.
+
+## Configuration
+
+| Variable | Purpose |
+|---|---|
+| `ANTHROPIC_API_KEY` | Enables Claude Sonnet 5.5 for Agents 1 and 2 |
+| `CLAUDE_MODEL` | Defaults to `claude-sonnet-5-5` |
+
+`GET /api/health` reports which brains are active.
+
+## API
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/search?q=` | YouTube suggestions |
+| POST | `/api/process` | Server-Sent Events: progress, then `complete` with scenes, hook, reel URL and caption |
+| POST | `/api/regenerate` | Same scene prompts, new seed → new images (and a re-rendered reel) |
+| GET | `/api/health` | Active brains and model |
+
+## Tests
+
 ```bash
-pip install -r requirements.txt
+python -m pytest -q tests      # 13 offline tests: no YouTube, lyrics, image or API calls
 ```
 
-### 3. Launch the Interactive Web Dashboard
-```bash
-python server.py
-```
-Open your browser at: **`http://localhost:8000`**
+The tests cover the lyric parser, the chorus finder, Claude response validation (with stubbed replies), stable image seeds across processes, regeneration, a full MP4 render from synthetic audio, and the `/api/process` event stream.
 
-*(Alternatively, you can simply open `web/index.html` directly in any web browser without running a server!)*
+## Honest limits
 
----
+- **Copyright.** Downloading audio from YouTube and burning lyrics into videos may breach YouTube's terms and the rights holders' copyright. Use this for music you have the rights to, or check the rules before posting publicly.
+- **Lyric timing.** Time-synced lyrics come from lrclib.net when it has them. Otherwise the lines are spread evenly across the song, which is labelled "approximate" in the output.
+- **Images.** Pollinations.ai generates them for free but is not guaranteed; if it fails, a procedural backdrop in the song's palette is used so the reel still renders.
+- **Legacy `core/` + `server.py`.** An earlier simulation pipeline. The real pipeline is `backend/` (run via `run.py`).
 
-## 💻 CLI Usage
-
-You can run the multi-agent pipeline directly from the command line:
-
-```bash
-# Example 1: Kesariya from Brahmastra
-python -m core.orchestrator --song "Kesariya" --movie "Brahmastra" --vibe "golden_hour"
-
-# Example 2: Tum Hi Ho from Aashiqui 2
-python -m core.orchestrator --song "Tum Hi Ho" --movie "Aashiqui 2" --vibe "moody_monsoon"
-
-# Example 3: Output JSON payload
-python -m core.orchestrator --song "Pehle Bhi Main" --movie "Animal" --json
-```
-
----
-
-## 📂 Repository Structure
+## Repository structure
 
 ```
-Daily_Content_Creation_Agent/
-├── core/
-│   ├── models.py                       # Pydantic data schemas for Agent inter-communication
-│   ├── agent1_viral_cutter.py          # Agent 1: Viral hook detection & audio trimming
-│   ├── agent2_aesthetic_storyboarder.py# Agent 2: Lyric chunking & aesthetic visual synthesis
-│   ├── agent3_video_compositor.py      # Agent 3: Video compositing & Instagram packaging
-│   └── orchestrator.py                 # Multi-Agent pipeline orchestrator
-├── web/
-│   ├── index.html                      # Interactive web dashboard UI
-│   ├── app.js                          # Canvas 9:16 reel player & agent simulation engine
-│   └── style.css                       # Glassmorphism, animations & aesthetic styling
-├── assets/                             # Output reels, audio clips, and scripts
-├── server.py                           # Python web server & REST API
-├── requirements.txt                    # Python dependencies
-├── LICENSE                             # MIT License (Bhagirath Argade)
-└── README.md                           # Documentation
+backend/
+  app.py              FastAPI app: /api/search, /api/process, /api/regenerate
+  claude_agents.py    Sonnet 5.5 for Agent 1 (hook) and Agent 2 (scenes), with heuristic fallbacks
+  lyrics.py           lrclib.net lyrics, LRC parser, approximate timing
+  agent1_extractor.py YouTube search, yt-dlp download, clip cutting
+  agent2_visual.py    image generation, seeds, regeneration
+  agent3_composer.py  9:16 MP4 composition and posting pack
+web/                  interactive dashboard (index.html, app.js, style.css)
+tests/                offline test suite
+run.py                entry point
 ```
 
----
+## License
 
-## 📜 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Developed with passion by **[Bhagirath Argade](https://github.com/BhagirathArgade)**.
+MIT © Bhagirath Argade. See [LICENSE](LICENSE).

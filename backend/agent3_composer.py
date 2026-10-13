@@ -103,6 +103,7 @@ def build_video(
     audio_clip_path: str,
     song_title: str,
     on_progress=None,
+    tag: str = "",
 ) -> str:
     """
     Composites all scene images with the audio hook clip into a final 9:16 MP4.
@@ -116,7 +117,7 @@ def build_video(
             on_progress("Agent 3: Starting video composition...")
 
         safe_name = re.sub(r"[^\w\s-]", "", song_title.lower()).strip().replace(" ", "_")[:40]
-        output_path = os.path.join(VIDEOS_DIR, f"{safe_name}_reel_9x16.mp4")
+        output_path = os.path.join(VIDEOS_DIR, f"{safe_name}_reel{tag}_9x16.mp4")
 
         clips = []
         for scene in scenes:

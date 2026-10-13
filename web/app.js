@@ -16,6 +16,7 @@ const state = {
   selectedVibe: "bollywood_drama",
   currentScenes: [],      // scenes from last run
   currentRegenSeed: 1,
+  currentAudioClip: "",  // hook clip URL from the last run
   currentVideoUrl: "",
   isProcessing: false,
   searchTimeout: null,
@@ -292,6 +293,7 @@ function renderResult(data) {
   // Save scenes for regeneration
   state.currentScenes = a2.scenes || [];
   state.currentVideoUrl = a3.video_url || "";
+  state.currentAudioClip = a1.audio_clip || "";
 
   // Video player
   if (a3.video_url) {
@@ -393,7 +395,8 @@ regenerateBtn.addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scenes: state.currentScenes.map(s => ({ id: s.id, text: s.text, start: s.start, end: s.end })),
+        scenes: state.currentScenes.map(s => ({ id: s.id, text: s.text, start: s.start, end: s.end, prompt: s.prompt })),
+        audio_clip: state.currentAudioClip,
         vibe: state.selectedVibe,
         song_title: state.selectedSong?.title || "",
         seed: state.currentRegenSeed,
@@ -425,7 +428,21 @@ regenerateBtn.addEventListener("click", async () => {
         if (evt === "complete") {
           state.currentScenes = payload.data?.scenes || state.currentScenes;
           renderScenesGallery(state.currentScenes);
-          if (!state.currentVideoUrl) startSlideshow(state.currentScenes);
+          if (payload.data?.video_url) {
+            state.currentVideoUrl = payload.data.video_url;
+            reelVideo.src = state.currentVideoUrl;
+            reelVideo.load();
+            reelVideo.parentElement.classList.remove("hidden");
+            document.getElementById("reelImageSlideshow").classList.add("hidden");
+            downloadVideoBtn.onclick = () => {
+              const a = document.createElement("a");
+              a.href = state.currentVideoUrl;
+              a.download = "";
+              a.click();
+            };
+          } else if (!state.currentVideoUrl) {
+            startSlideshow(state.currentScenes);
+          }
           logLine("New visuals generated!", "success");
         }
       }

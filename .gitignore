@@ -39,3 +39,6 @@ outputs/images/*
 outputs/videos/*
 !outputs/**/.gitkeep
 
+
+# secrets
+.env
