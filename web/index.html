@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Content Creation Agent | Multi-Agent AI System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-['Plus_Jakarta_Sans'] selection:bg-rose-500 selection:text-white">
+
+  <!-- Ambient Glow Background -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+    <div class="absolute -top-40 -left-40 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl animate-pulse"></div>
+    <div class="absolute top-1/3 -right-40 w-96 h-96 bg-rose-600/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+    <div class="absolute -bottom-40 left-1/3 w-96 h-96 bg-cyan-600/15 rounded-full blur-3xl animate-pulse delay-2000"></div>
+    <div class="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25"></div>
+  </div>
+
+  <div class="relative z-10 flex flex-col min-h-screen">
+    <!-- Navigation Bar -->
+    <header class="border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+        
+        <!-- Brand & Title -->
+        <div class="flex items-center space-x-4">
+          <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-rose-500/25 ring-1 ring-white/20">
+            <i class="fa-solid fa-wand-magic-sparkles text-xl text-white"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2.5">
+              <span class="font-['Outfit'] font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+                Daily Content Creation Agent
+              </span>
+              <span class="px-2 py-0.5 text-xs font-semibold uppercase tracking-wider rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                v2.0 Multi-Agent
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Autonomous 3-Agent AI Engine for Viral Instagram Reels</p>
+          </div>
+        </div>
+
+        <!-- Prominent Author & Social Credit -->
+        <div class="flex items-center space-x-3">
+          <div class="flex items-center space-x-3 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-indigo-500/10 border border-amber-500/30 backdrop-blur-md shadow-inner">
+            <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center font-bold text-slate-950 shadow-md">
+              <i class="fa-solid fa-crown text-sm"></i>
+            </div>
+            <div class="text-left">
+              <div class="text-[10px] uppercase font-bold tracking-widest text-amber-400">Project Architect & Author</div>
+              <div class="text-sm font-extrabold text-white flex items-center space-x-1.5">
+                <span>Bhagirath Argade</span>
+                <i class="fa-solid fa-circle-check text-xs text-cyan-400" title="Verified Creator"></i>
+              </div>
+            </div>
+          </div>
+
+          <a href="https://github.com/BhagirathArgade/Daily_Content_Creation_Agent" target="_blank" class="px-3.5 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700/80 transition-all flex items-center space-x-2 text-xs font-semibold shadow-sm">
+            <i class="fa-brands fa-github text-base"></i>
+            <span class="hidden sm:inline">GitHub Repo</span>
+          </a>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      
+      <!-- Quick Info / Architecture Banner -->
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="glass-card rounded-2xl p-4 border border-rose-500/20 bg-rose-500/5 relative overflow-hidden group">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400 font-bold">
+              1
+            </div>
+            <div>
+              <div class="text-xs uppercase font-bold tracking-wider text-rose-400">Agent 1</div>
+              <div class="text-sm font-bold text-white">Viral Audio & Hook Extractor</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">Pinpoints 15-30s viral sweet spot, calculates BPM, virality score & extracts exact hook audio.</p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-purple-500/20 bg-purple-500/5 relative overflow-hidden group">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400 font-bold">
+              2
+            </div>
+            <div>
+              <div class="text-xs uppercase font-bold tracking-wider text-purple-400">Agent 2</div>
+              <div class="text-sm font-bold text-white">Lyrical Breakdown & Storyboarder</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">Splits clip into timed mini-sentences, enforces cohesive aesthetic vibe & synthesizes 9:16 assets.</p>
+        </div>
+
+        <div class="glass-card rounded-2xl p-4 border border-cyan-500/20 bg-cyan-500/5 relative overflow-hidden group">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
+              3
+            </div>
+            <div>
+              <div class="text-xs uppercase font-bold tracking-wider text-cyan-400">Agent 3</div>
+              <div class="text-sm font-bold text-white">Kinetic Video Compositor & Publisher</div>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-2">Composites final 9:16 vertical Reel with animated kinetic subtitles, captions & viral hashtags.</p>
+        </div>
+      </section>
+
+      <!-- Input Dashboard & Workflow Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        
+        <!-- Left Column: Controls & Pipeline Trigger (5 cols) -->
+        <div class="lg:col-span-5 space-y-6">
+          <div class="glass-card rounded-3xl p-6 sm:p-7 border border-slate-800 bg-slate-900/60 backdrop-blur-xl shadow-2xl relative">
+            
+            <div class="flex items-center justify-between pb-5 border-b border-slate-800/80 mb-6">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <i class="fa-solid fa-sliders text-sm"></i>
+                </div>
+                <h2 class="font-['Outfit'] font-bold text-lg text-white">Content Generation Deck</h2>
+              </div>
+              <span class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 font-mono">Ready</span>
+            </div>
+
+            <form id="pipelineForm" class="space-y-5">
+              
+              <!-- Song Name Input -->
+              <div>
+                <label for="songName" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  Song Name <span class="text-rose-500">*</span>
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <i class="fa-solid fa-music"></i>
+                  </div>
+                  <input type="text" id="songName" required
+                    placeholder="e.g. Kesariya, Tum Hi Ho, Pehle Bhi Main..."
+                    value="Kesariya"
+                    class="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition text-sm">
+                </div>
+              </div>
+
+              <!-- Movie / Artist Input -->
+              <div>
+                <label for="movieName" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  Movie or Artist Name <span class="text-slate-500 text-[11px]">(Optional)</span>
+                </label>
+                <div class="relative">
+                  <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                    <i class="fa-solid fa-clapperboard"></i>
+                  </div>
+                  <input type="text" id="movieName"
+                    placeholder="e.g. Brahmastra, Aashiqui 2, Animal..."
+                    value="Brahmastra"
+                    class="w-full pl-10 pr-4 py-3 bg-slate-950/80 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-sm">
+                </div>
+              </div>
+
+              <!-- Quick Presets Chips -->
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Quick Viral Track Presets</label>
+                <div class="flex flex-wrap gap-2" id="presetChips">
+                  <button type="button" data-song="Kesariya" data-movie="Brahmastra" data-vibe="golden_hour" class="preset-chip active">Kesariya</button>
+                  <button type="button" data-song="Tum Hi Ho" data-movie="Aashiqui 2" data-vibe="moody_monsoon" class="preset-chip">Tum Hi Ho</button>
+                  <button type="button" data-song="Pehle Bhi Main" data-movie="Animal" data-vibe="cyber_lofi" class="preset-chip">Pehle Bhi Main</button>
+                  <button type="button" data-song="Channa Mereya" data-movie="Ae Dil Hai Mushkil" data-vibe="dark_academia" class="preset-chip">Channa Mereya</button>
+                  <button type="button" data-song="Starboy" data-movie="The Weeknd" data-vibe="cyber_lofi" class="preset-chip">Starboy</button>
+                  <button type="button" data-song="Golden Hour" data-movie="JVKE" data-vibe="golden_hour" class="preset-chip">Golden Hour</button>
+                </div>
+              </div>
+
+              <!-- Aesthetic Vibe Selection -->
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2.5">
+                  Aesthetic DNA & Visual Vibe (Agent 2)
+                </label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5" id="vibeSelector">
+                  <label class="vibe-card active" data-vibe="moody_monsoon">
+                    <input type="radio" name="vibe" value="moody_monsoon" class="sr-only" checked>
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xl">🌧️</span>
+                      <div>
+                        <div class="font-bold text-xs text-white">Moody Monsoon</div>
+                        <div class="text-[10px] text-slate-400">35mm Rain & Neon Glow</div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="vibe-card" data-vibe="golden_hour">
+                    <input type="radio" name="vibe" value="golden_hour" class="sr-only">
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xl">🌅</span>
+                      <div>
+                        <div class="font-bold text-xs text-white">Golden Hour</div>
+                        <div class="text-[10px] text-slate-400">Warm Portra 400 Sunset</div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="vibe-card" data-vibe="cyber_lofi">
+                    <input type="radio" name="vibe" value="cyber_lofi" class="sr-only">
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xl">🌆</span>
+                      <div>
+                        <div class="font-bold text-xs text-white">Cyber Lofi</div>
+                        <div class="text-[10px] text-slate-400">Tokyo Midnight Neon</div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="vibe-card" data-vibe="dark_academia">
+                    <input type="radio" name="vibe" value="dark_academia" class="sr-only">
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xl">☕</span>
+                      <div>
+                        <div class="font-bold text-xs text-white">Dark Academia</div>
+                        <div class="text-[10px] text-slate-400">Vintage Candlelit Solitude</div>
+                      </div>
+                    </div>
+                  </label>
+
+                  <label class="vibe-card sm:col-span-2" data-vibe="anime_dreamscape">
+                    <input type="radio" name="vibe" value="anime_dreamscape" class="sr-only">
+                    <div class="flex items-center space-x-2.5">
+                      <span class="text-xl">🌌</span>
+                      <div>
+                        <div class="font-bold text-xs text-white">Anime Makoto Shinkai</div>
+                        <div class="text-[10px] text-slate-400">Ethereal Twilight Clouds & Shooting Stars</div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Kinetic Subtitle Animation Style -->
+              <div>
+                <label for="subtitleStyle" class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
+                  Kinetic Lyric Typography (Agent 3)
+                </label>
+                <select id="subtitleStyle" class="w-full px-4 py-3 bg-slate-950/80 border border-slate-700/80 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                  <option value="Karaoke Highlight">⚡ Kinetic Karaoke Glow (Word-by-word pulse)</option>
+                  <option value="Cinematic Subtitle">🎬 Cinematic 35mm Film Subtitle (Centered Serif)</option>
+                  <option value="Bold Pop">💥 TikTok Bold Punch (Dynamic Scale Zoom)</option>
+                  <option value="Typewriter">🖋️ Elegant Minimalist Typewriter</option>
+                </select>
+              </div>
+
+              <!-- Viral Sweet Spot Override or Auto AI -->
+              <div class="p-3.5 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                  <i class="fa-solid fa-bolt text-amber-400"></i>
+                  <div>
+                    <div class="text-xs font-bold text-slate-200">AI Viral Hook Auto-Detection</div>
+                    <div class="text-[11px] text-slate-400">Agent 1 calculates highest energy drop</div>
+                  </div>
+                </div>
+                <div class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">
+                  Active (15-30s)
+                </div>
+              </div>
+
+              <!-- Launch Master Multi-Agent Pipeline CTA -->
+              <button type="submit" id="generateBtn" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-500 via-purple-600 to-indigo-600 hover:from-rose-600 hover:via-purple-700 hover:to-indigo-700 text-white font-['Outfit'] font-bold text-base tracking-wide shadow-xl shadow-rose-500/25 transition-all duration-300 transform active:scale-95 flex items-center justify-center space-x-3 group cursor-pointer">
+                <i class="fa-solid fa-play group-hover:translate-x-0.5 transition-transform"></i>
+                <span>Launch Multi-Agent Pipeline</span>
+              </button>
+
+            </form>
+          </div>
+        </div>
+
+        <!-- Right Column: Live Multi-Agent Output & 9:16 Video Canvas (7 cols) -->
+        <div class="lg:col-span-7 space-y-6">
+
+          <!-- Execution Pipeline Status Tracker -->
+          <div class="glass-card rounded-3xl p-6 border border-slate-800 bg-slate-900/60 backdrop-blur-xl">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-['Outfit'] font-bold text-base text-white flex items-center space-x-2">
+                <i class="fa-solid fa-network-wired text-rose-500"></i>
+                <span>Multi-Agent Live Execution Status</span>
+              </h3>
+              <span id="pipelineStatusBadge" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-300">
+                Ready for Instructions
+              </span>
+            </div>
+
+            <!-- Agent Progress Steps Bar -->
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div id="stepAgent1" class="step-indicator">
+                <div class="step-num">1</div>
+                <div class="step-label">Agent 1: Viral Hook</div>
+              </div>
+              <div id="stepAgent2" class="step-indicator">
+                <div class="step-num">2</div>
+                <div class="step-label">Agent 2: Storyboard</div>
+              </div>
+              <div id="stepAgent3" class="step-indicator">
+                <div class="step-num">3</div>
+                <div class="step-label">Agent 3: Video Ready</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Video Reel Live Canvas & Social Package Studio -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+            
+            <!-- 9:16 Instagram Reel Player Preview (md: 6 cols) -->
+            <div class="md:col-span-6 flex flex-col items-center">
+              <div class="relative w-full max-w-[310px] aspect-[9/16] rounded-[2.5rem] p-3 bg-gradient-to-b from-slate-800 to-slate-950 border-4 border-slate-700 shadow-2xl shadow-purple-500/10 overflow-hidden flex flex-col">
+                
+                <!-- Phone Speaker & Camera Notch -->
+                <div class="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-900 rounded-full z-30 flex items-center justify-center space-x-2">
+                  <div class="w-2 h-2 rounded-full bg-slate-700"></div>
+                  <div class="w-10 h-1 bg-slate-800 rounded-full"></div>
+                </div>
+
+                <!-- 9:16 Canvas Screen -->
+                <div class="relative flex-1 rounded-[2rem] overflow-hidden bg-black flex flex-col justify-between">
+                  <canvas id="reelCanvas" width="540" height="960" class="absolute inset-0 w-full h-full object-cover z-0"></canvas>
+                  
+                  <!-- Canvas Top Overlay: Instagram Header -->
+                  <div class="relative z-10 pt-7 px-4 flex items-center justify-between text-white/90 drop-shadow-md">
+                    <div class="flex items-center space-x-2">
+                      <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-rose-500 flex items-center justify-center text-[10px] font-bold text-slate-950">
+                        BA
+                      </div>
+                      <div class="text-left">
+                        <div class="text-xs font-bold leading-tight">Bhagirath Argade</div>
+                        <div class="text-[9px] text-white/70 flex items-center space-x-1">
+                          <i class="fa-solid fa-music text-[8px]"></i>
+                          <span id="canvasAudioTag">Kesariya • Brahmastra</span>
+                        </div>
+                      </div>
+                    </div>
+                    <button class="text-xs px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md font-semibold hover:bg-white/30 transition">
+                      Follow
+                    </button>
+                  </div>
+
+                  <!-- Canvas Floating Right Action Icons (Instagram Style) -->
+                  <div class="relative z-10 self-end mr-3 mb-6 space-y-4 text-white text-center drop-shadow-lg">
+                    <button id="likeBtn" class="flex flex-col items-center space-y-0.5 group">
+                      <div class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center group-hover:text-rose-500 transition">
+                        <i class="fa-solid fa-heart text-base"></i>
+                      </div>
+                      <span class="text-[10px] font-semibold">142K</span>
+                    </button>
+                    <button class="flex flex-col items-center space-y-0.5 group">
+                      <div class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center group-hover:text-cyan-400 transition">
+                        <i class="fa-solid fa-comment-dots text-base"></i>
+                      </div>
+                      <span class="text-[10px] font-semibold">2,840</span>
+                    </button>
+                    <button class="flex flex-col items-center space-y-0.5 group">
+                      <div class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center group-hover:text-indigo-400 transition">
+                        <i class="fa-solid fa-paper-plane text-base"></i>
+                      </div>
+                      <span class="text-[10px] font-semibold">Share</span>
+                    </button>
+                  </div>
+
+                  <!-- Canvas Bottom Video Scrubber & Play State -->
+                  <div class="relative z-10 px-4 pb-4">
+                    <div class="w-full bg-white/20 h-1 rounded-full overflow-hidden mb-2">
+                      <div id="reelProgressBar" class="h-full bg-gradient-to-r from-rose-500 to-amber-400 w-0 transition-all duration-100"></div>
+                    </div>
+                    <div class="flex items-center justify-between text-white/80 text-[10px]">
+                      <span id="reelCurrentTime">00:00</span>
+                      <span id="reelTotalTime">00:26</span>
+                    </div>
+                  </div>
+
+                </div>
+
+                <!-- Reel Canvas Controls -->
+                <div class="pt-3 px-2 flex items-center justify-between text-slate-300">
+                  <button id="playPauseBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white transition">
+                    <i class="fa-solid fa-play text-xs" id="playIcon"></i>
+                  </button>
+                  <button id="restartBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white transition" title="Replay from start">
+                    <i class="fa-solid fa-rotate-left text-xs"></i>
+                  </button>
+                  <button id="toggleAudioBtn" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white transition" title="Toggle Audio Synth">
+                    <i class="fa-solid fa-volume-high text-xs" id="volumeIcon"></i>
+                  </button>
+                  <button id="downloadReelBtn" class="px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs flex items-center space-x-1.5 transition shadow-lg shadow-rose-500/20">
+                    <i class="fa-solid fa-download"></i>
+                    <span>Export MP4</span>
+                  </button>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Agent Insights, Storyboard Timeline & Instagram Caption Box (md: 6 cols) -->
+            <div class="md:col-span-6 space-y-5">
+              
+              <!-- Agent 1 Insights Card -->
+              <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-slate-900/60">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                  <div class="flex items-center space-x-2 text-rose-400 font-bold text-xs">
+                    <i class="fa-solid fa-waveform-lines"></i>
+                    <span>Agent 1 • Viral Audio Analysis</span>
+                  </div>
+                  <span id="viralityBadge" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    98% Viral Confidence
+                  </span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 mt-3 text-center">
+                  <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400">Timestamp</div>
+                    <div id="hookTimestamp" class="text-xs font-bold text-white font-mono">54s - 80s</div>
+                  </div>
+                  <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400">Tempo / BPM</div>
+                    <div id="hookBpm" class="text-xs font-bold text-indigo-400 font-mono">118 BPM</div>
+                  </div>
+                  <div class="bg-slate-950/80 p-2 rounded-lg border border-slate-800">
+                    <div class="text-[10px] text-slate-400">Peak Energy</div>
+                    <div id="hookEnergy" class="text-xs font-bold text-emerald-400">High Drop</div>
+                  </div>
+                </div>
+                <!-- Real-time Animated Audio Waveform -->
+                <div class="mt-3 flex items-center justify-center space-x-1 h-8 bg-slate-950/90 rounded-lg px-2 border border-slate-800" id="audioWaveform">
+                  <div class="wave-bar h-2"></div>
+                  <div class="wave-bar h-5"></div>
+                  <div class="wave-bar h-7"></div>
+                  <div class="wave-bar h-3"></div>
+                  <div class="wave-bar h-6"></div>
+                  <div class="wave-bar h-8"></div>
+                  <div class="wave-bar h-4"></div>
+                  <div class="wave-bar h-7"></div>
+                  <div class="wave-bar h-2"></div>
+                  <div class="wave-bar h-6"></div>
+                  <div class="wave-bar h-8"></div>
+                  <div class="wave-bar h-5"></div>
+                  <div class="wave-bar h-3"></div>
+                  <div class="wave-bar h-7"></div>
+                  <div class="wave-bar h-4"></div>
+                </div>
+              </div>
+
+              <!-- Agent 2 Storyboard Gallery Preview -->
+              <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-slate-900/60">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+                  <div class="flex items-center space-x-2 text-purple-400 font-bold text-xs">
+                    <i class="fa-solid fa-images"></i>
+                    <span>Agent 2 • Timed Aesthetic Storyboard</span>
+                  </div>
+                  <span id="scenesCountBadge" class="text-[11px] text-slate-400">4 Scenes Synchronized</span>
+                </div>
+                <div class="space-y-2 max-h-48 overflow-y-auto pr-1" id="storyboardScenesList">
+                  <!-- Injected via JavaScript -->
+                </div>
+              </div>
+
+              <!-- Agent 3 Instagram Content Ready Pack -->
+              <div class="glass-card rounded-2xl p-4 border border-slate-800 bg-slate-900/60">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-2">
+                  <div class="flex items-center space-x-2 text-cyan-400 font-bold text-xs">
+                    <i class="fa-brands fa-instagram text-sm"></i>
+                    <span>Agent 3 • Content Ready Pack</span>
+                  </div>
+                  <button id="copyCaptionBtn" class="text-xs px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-semibold border border-cyan-500/30 transition flex items-center space-x-1">
+                    <i class="fa-regular fa-copy"></i>
+                    <span>Copy Caption</span>
+                  </button>
+                </div>
+                
+                <div class="text-[11px] text-slate-400 mb-1 flex items-center space-x-2">
+                  <i class="fa-regular fa-clock text-amber-400"></i>
+                  <span>Recommended Post Window: <strong id="bestPostTime" class="text-white font-mono">Today 07:15 PM IST</strong></span>
+                </div>
+
+                <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 font-mono text-[11px] text-slate-300 max-h-36 overflow-y-auto whitespace-pre-wrap select-all" id="captionContent">
+                  <!-- Injected via JavaScript -->
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- System Architecture & Agent Collaboration Diagram -->
+      <section class="glass-card rounded-3xl p-6 sm:p-8 border border-slate-800 bg-slate-900/40 backdrop-blur-xl">
+        <h3 class="font-['Outfit'] font-bold text-lg text-white mb-6 flex items-center space-x-2.5">
+          <i class="fa-solid fa-diagram-project text-indigo-400"></i>
+          <span>Multi-Agent Autonomous Pipeline Architecture</span>
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          
+          <!-- Step 1 Card -->
+          <div class="p-5 rounded-2xl bg-slate-950/80 border border-rose-500/30 relative">
+            <div class="absolute -top-3 left-4 px-2 py-0.5 rounded bg-rose-500 text-[10px] font-bold text-white uppercase tracking-wider">
+              Stage 1
+            </div>
+            <div class="text-sm font-bold text-white mt-1 mb-2">Agent 1: Viral Audio Engine</div>
+            <ul class="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+              <li>Song & movie semantic analysis</li>
+              <li>Calculates chorus energy drop & virality score</li>
+              <li>Determines 15-30s reel sweet spot</li>
+              <li>Extracts high-resolution audio clip</li>
+            </ul>
+          </div>
+
+          <!-- Step 2 Card -->
+          <div class="p-5 rounded-2xl bg-slate-950/80 border border-purple-500/30 relative">
+            <div class="absolute -top-3 left-4 px-2 py-0.5 rounded bg-purple-500 text-[10px] font-bold text-white uppercase tracking-wider">
+              Stage 2
+            </div>
+            <div class="text-sm font-bold text-white mt-1 mb-2">Agent 2: Aesthetic Storyboarder</div>
+            <ul class="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+              <li>Splits lyrics into 3-5 mini-sentences</li>
+              <li>Assigns sub-second transition timestamps</li>
+              <li>Enforces cohesive Aesthetic Vibe DNA</li>
+              <li>Curates 9:16 images & crafts AI prompts</li>
+            </ul>
+          </div>
+
+          <!-- Step 3 Card -->
+          <div class="p-5 rounded-2xl bg-slate-950/80 border border-cyan-500/30 relative">
+            <div class="absolute -top-3 left-4 px-2 py-0.5 rounded bg-cyan-500 text-[10px] font-bold text-white uppercase tracking-wider">
+              Stage 3
+            </div>
+            <div class="text-sm font-bold text-white mt-1 mb-2">Agent 3: Video Compositor</div>
+            <ul class="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
+              <li>Renders 9:16 vertical composition</li>
+              <li>Syncs kinetic subtitles (Karaoke / Film Serif)</li>
+              <li>Generates viral caption with hook line</li>
+              <li>Clusters targeted hashtags & post timing</li>
+            </ul>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Footer with Prominent Author Attribution -->
+    <footer class="border-t border-slate-800/80 bg-slate-950/80 backdrop-blur-xl py-8 mt-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-rose-500 to-indigo-600 flex items-center justify-center font-bold text-white text-xs">
+            BA
+          </div>
+          <div class="text-xs text-slate-400">
+            <strong class="text-white">Daily_Content_Creation_Agent</strong> — Created with autonomous AI agents.
+          </div>
+        </div>
+
+        <div class="text-xs text-slate-300 flex items-center space-x-2">
+          <span>Author:</span>
+          <a href="https://github.com/BhagirathArgade" target="_blank" class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-rose-400 to-cyan-400 hover:opacity-80 transition underline decoration-rose-500/50">
+            Bhagirath Argade
+          </a>
+          <span class="text-slate-600">•</span>
+          <span class="text-slate-400">© 2026 All Rights Reserved</span>
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
