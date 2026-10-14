@@ -108,15 +108,23 @@ document.addEventListener("click", e => {
   }
 });
 
+function showSuggestionMessage(text, isError = false) {
+  suggestionsDrop.innerHTML = `<div class="px-4 py-3 text-xs ${isError ? "text-rose-300" : "text-slate-400"}">${text}</div>`;
+  suggestionsDrop.classList.remove("hidden");
+}
+
 async function fetchSuggestions(q) {
   searchSpinner.classList.remove("hidden");
   try {
     const resp = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    if (!resp.ok) throw new Error("Search failed");
-    const data = await resp.json();
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      showSuggestionMessage(`Couldn't load suggestions: ${(data.error || resp.statusText).replace(/[<>]/g, "")}`, true);
+      return;
+    }
     renderSuggestions(data.results || []);
   } catch (err) {
-    suggestionsDrop.classList.add("hidden");
+    showSuggestionMessage("Couldn't reach the server. Is run.py still running?", true);
   } finally {
     searchSpinner.classList.add("hidden");
   }
@@ -125,7 +133,7 @@ async function fetchSuggestions(q) {
 function renderSuggestions(results) {
   suggestionsDrop.innerHTML = "";
   if (!results.length) {
-    suggestionsDrop.classList.add("hidden");
+    showSuggestionMessage("No matching songs found. Try adding the artist or movie name.");
     return;
   }
   results.forEach(item => {

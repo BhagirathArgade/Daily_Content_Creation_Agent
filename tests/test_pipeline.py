@@ -197,3 +197,17 @@ def test_process_stream_runs_all_three_agents(tmp_path, monkeypatch):
     assert payload["agent1"]["lyrics"]["synced"] is True
     assert payload["agent2"]["scenes"] and payload["agent2"]["scenes"][0]["image_url"].startswith("/outputs/images/")
     assert payload["agent3"]["video_url"].startswith("/outputs/videos/")
+
+
+def test_search_endpoint_reports_errors_and_returns_items(monkeypatch):
+    from fastapi.testclient import TestClient
+    import backend.app as app_mod
+    client = TestClient(app_mod.app)
+    monkeypatch.setattr(app_mod.RealAudioExtractorAgent, "search_songs",
+                        lambda self, q, max_results=8: [{"error": "network blocked", "title": q, "video_id": "", "url": "", "channel": ""}])
+    r = client.get("/api/search", params={"q": "parvati"})
+    assert r.status_code == 502 and "network blocked" in r.json()["error"]
+    monkeypatch.setattr(app_mod.RealAudioExtractorAgent, "search_songs",
+                        lambda self, q, max_results=8: [{"title": "Parvati", "channel": "C", "duration": 200, "url": "u", "video_id": "abc", "thumbnail": ""}])
+    r = client.get("/api/search", params={"q": "parvati"})
+    assert r.status_code == 200 and r.json()["results"][0]["video_id"] == "abc"

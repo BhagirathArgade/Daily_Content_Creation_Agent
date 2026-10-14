@@ -93,7 +93,9 @@ def health():
 async def search_songs(q: str = Query(..., min_length=1)):
     """YouTube suggestions for a song name."""
     results = await asyncio.to_thread(RealAudioExtractorAgent().search_songs, q, 8)
-    return JSONResponse(content={"results": results})
+    if results and results[0].get("error"):
+        return JSONResponse(status_code=502, content={"results": [], "error": results[0]["error"][:300]})
+    return JSONResponse(content={"results": [r for r in results if r.get("video_id")]})
 
 
 class ProcessRequest(BaseModel):
