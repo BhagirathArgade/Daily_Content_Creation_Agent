@@ -67,12 +67,12 @@ def test_scenes_tile_clip_and_match_lyrics_without_api_key(monkeypatch):
     assert "midnight rain" in joined and "little light" in joined
 
 
-def test_claude_plan_is_used_when_phrases_are_valid(monkeypatch):
+def test_claude_scenes_are_used_when_they_cover_the_lyrics(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     reply = {
         "style": {"name": "Rain", "palette": ["#112233"], "grade": "teal", "lighting": "neon", "subject_style": "street photo", "texture": "grain", "mood": "lonely"},
-        "lines": [{"line": 0, "phrases": [{"text": "midnight rain", "prompt": "wet street at midnight"},
-                                          {"text": "on an empty street", "prompt": "empty city road"}]}],
+        "scenes": [{"text": "midnight rain", "prompt": "wet street at midnight"},
+                   {"text": "on an empty street", "prompt": "empty city road"}],
     }
     monkeypatch.setattr(claude_agents, "_ask_json", lambda *a, **k: reply)
     plan = claude_agents.plan_scenes("T", "", [Line(0, 4, "midnight rain on an empty street")], 4, "Golden", "x", ["#000"])
@@ -82,12 +82,45 @@ def test_claude_plan_is_used_when_phrases_are_valid(monkeypatch):
     assert plan["style"]["name"] == "Rain"
 
 
-def test_claude_phrases_that_drop_words_fall_back_per_line(monkeypatch):
+def test_claude_scenes_that_drop_words_are_rejected_for_heuristic(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
-    bad = {"style": {}, "lines": [{"line": 0, "phrases": [{"text": "midnight", "prompt": "x"}]}]}
+    bad = {"style": {}, "scenes": [{"text": "midnight", "prompt": "x"}]}
     monkeypatch.setattr(claude_agents, "_ask_json", lambda *a, **k: bad)
     plan = claude_agents.plan_scenes("T", "", [Line(0, 4, "midnight rain on an empty street")], 4, "G", "suffix", ["#000"])
-    assert "rain" in " ".join(s["text"] for s in plan["scenes"])  # nothing silently dropped
+    assert plan["source"].startswith("heuristic (Claude failed")
+    assert "".join(s["text"] for s in plan["scenes"]).replace(" ", "") == "midnightrainonanemptystreet"
+
+
+def test_claude_reply_with_more_than_eight_scenes_is_rejected(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    words = ["alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet"]
+    many = {"style": {}, "scenes": [{"text": w, "prompt": w} for w in words]}
+    monkeypatch.setattr(claude_agents, "_ask_json", lambda *a, **k: many)
+    lines = [Line(0, 10, " ".join(words))]
+    plan = claude_agents.plan_scenes("T", "", lines, 10, "G", "suffix", ["#000"])
+    assert plan["source"].startswith("heuristic (Claude failed")
+    assert len(plan["scenes"]) <= claude_agents.MAX_SCENES
+
+
+@pytest.mark.parametrize("n_lines,clip_len", [(3, 11), (8, 32), (14, 30), (40, 30)])
+def test_never_more_than_eight_scenes_and_full_coverage(monkeypatch, n_lines, clip_len):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    step = clip_len / n_lines
+    lines = [Line(i * step, (i + 1) * step, f"word{i} lyric line number {i} here") for i in range(n_lines)]
+    plan = claude_agents.plan_scenes("T", "", lines, clip_len, "G", "suffix", ["#000"])
+    sc = plan["scenes"]
+    assert 1 <= len(sc) <= 8
+    assert sc[0]["start"] == 0 and sc[-1]["end"] == pytest.approx(clip_len)
+    assert all(a["end"] == b["start"] for a, b in zip(sc, sc[1:]))
+    text = "".join(s["text"] for s in sc).replace(" ", "")
+    assert text == "".join(l.text for l in lines).replace(" ", "")
+
+
+def test_typical_clip_gets_seven_or_eight_scenes(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    lines = [Line(i * 2.5, i * 2.5 + 2.5, f"this is lyric line number {i} of the chorus") for i in range(10)]
+    plan = claude_agents.plan_scenes("T", "", lines, 25, "G", "suffix", ["#000"])
+    assert len(plan["scenes"]) in (7, 8)
 
 
 def test_claude_failure_is_reported_not_raised(monkeypatch):

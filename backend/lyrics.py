@@ -96,3 +96,21 @@ def fetch_lyrics(title: str, artist: str = "", timeout: float = 10) -> dict:
         if (e.get("plainLyrics") or "").strip():
             return {"lines": [], "plain": e["plainLyrics"], "synced": False, "source": "lrclib.net"}
     return empty
+
+
+def transcribe_clip(audio_path: str) -> list[Line]:
+    """Timed words of the cut clip itself, via faster-whisper (optional: pip install faster-whisper).
+
+    Returns [] when faster-whisper is not installed or fails - the caller then falls back to the title.
+    Times are relative to the clip file, which starts at 0.
+    """
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError:
+        return []
+    try:
+        model = WhisperModel("small", compute_type="int8")
+        segments, _ = model.transcribe(audio_path, vad_filter=True)
+        return [Line(round(s.start, 2), round(s.end, 2), s.text.strip()) for s in segments if s.text.strip()]
+    except Exception:
+        return []

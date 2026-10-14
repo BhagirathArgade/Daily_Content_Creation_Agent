@@ -41,9 +41,10 @@ os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 sys.path.insert(0, BASE_DIR)
 from backend import agent2_visual, claude_agents  # noqa: E402
+from backend.claude_agents import MAX_SCENES  # noqa: E402
 from backend.agent1_extractor import RealAudioExtractorAgent  # noqa: E402
 from backend.agent3_composer import VIDEOS_DIR, build_video, generate_instagram_pack  # noqa: E402
-from backend.lyrics import Line, approximate_timing, fetch_lyrics  # noqa: E402
+from backend.lyrics import Line, approximate_timing, fetch_lyrics, transcribe_clip  # noqa: E402
 
 app = FastAPI(title="Daily Content Creation Agent", version="2.1")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -149,13 +150,17 @@ async def process_pipeline(req: ProcessRequest):
                 Line(max(0.0, l.start - hook["start"]), min(clip_len, l.end - hook["start"]), l.text)
                 for l in lines if l.end > hook["start"] and l.start < hook["end"]
             ]
-            yield _sse("progress", f"[Agent 2] {len(clip_lines)} lyric lines fall inside the clip - splitting into caption phrases…")
+            if not clip_lines:
+                clip_lines = await asyncio.to_thread(transcribe_clip, clip_path)
+                if clip_lines:
+                    yield _sse("progress", f"[Agent 2] No lyrics for this clip - transcribed the clip itself ({len(clip_lines)} segments)")
+            yield _sse("progress", f"[Agent 2] Tokenizing the clip into meaningful statements (max {MAX_SCENES} scenes)…")
             plan = await asyncio.to_thread(
                 claude_agents.plan_scenes, req.song_title, artist, clip_lines, clip_len,
                 preset["name"], preset["style_suffix"], preset["palette"], "",
             )
             palette = plan["style"].get("palette") or preset["palette"]
-            yield _sse("progress", f"[Agent 2] {len(plan['scenes'])} scenes planned in one style ({plan['source']})")
+            yield _sse("progress", f"[Agent 2] {len(plan['scenes'])} scenes planned in one shared style ({plan['source']})")
 
             out_dir = os.path.join(agent2_visual.IMAGES_DIR, _slug(req.song_title))
             scenes = []

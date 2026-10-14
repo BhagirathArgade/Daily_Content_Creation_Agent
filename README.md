@@ -18,12 +18,11 @@ song name ──► YouTube suggestions ──► pick one
                  └──────────────────────┬──────────────────────┘
                  ┌──────────────────────┴──────────────────────┐
                  │ Agent 2 · Aesthetic Storyboarder (Sonnet 5.5)│
-                 │  • splits the clip's lyric lines into caption│
-                 │    phrases (exact words, timed to the audio) │
-                 │  • writes ONE style bible for every image   │
-                 │  • one image per phrase (Pollinations.ai)   │
-                 │  • 🔁 Regenerate: same lyrics, new seed      │
-                 └──────────────────────┬──────────────────────┘
+                 │  • tokenizes the clip's lyrics into meaning- │
+                 │    ful statements: at most 8 scenes total   │
+                 │  • one image per statement, one shared style │
+                 │    (same accent throughout the reel)        │
+                 │  • 🔁 Regenerate: same scenes, new seed      │
                  ┌──────────────────────┴──────────────────────┐
                  │ Agent 3 · Composer                          │
                  │  • 9:16 MP4: images + captions + hook audio │
@@ -69,11 +68,12 @@ Then type the song name, choose a suggestion, pick a vibe, and press **Generate*
 python -m pytest -q tests      # 13 offline tests: no YouTube, lyrics, image or API calls
 ```
 
-The tests cover the lyric parser, the chorus finder, Claude response validation (with stubbed replies), stable image seeds across processes, regeneration, a full MP4 render from synthetic audio, and the `/api/process` event stream.
+The tests cover the lyric parser, the chorus finder, Claude response validation (with stubbed replies, including the 8-scene cap and full word coverage), stable image seeds across processes, regeneration, a full MP4 render from synthetic audio, and the `/api/process` event stream.
 
 ## Honest limits
 
 - **Copyright.** Downloading audio from YouTube and burning lyrics into videos may breach YouTube's terms and the rights holders' copyright. Use this for music you have the rights to, or check the rules before posting publicly.
+- **Clip tokenization.** Statements come from the lyrics timed to the clip. If no lyrics are found, the clip is transcribed with faster-whisper when it is installed (`pip install faster-whisper`); otherwise the song title is used.
 - **Lyric timing.** Time-synced lyrics come from lrclib.net when it has them. Otherwise the lines are spread evenly across the song, which is labelled "approximate" in the output.
 - **Images.** Pollinations.ai generates them for free but is not guaranteed; if it fails, a procedural backdrop in the song's palette is used so the reel still renders.
 - **Legacy `core/` + `server.py`.** An earlier simulation pipeline. The real pipeline is `backend/` (run via `run.py`).
@@ -83,7 +83,7 @@ The tests cover the lyric parser, the chorus finder, Claude response validation 
 ```
 backend/
   app.py              FastAPI app: /api/search, /api/process, /api/regenerate
-  claude_agents.py    Sonnet 5.5 for Agent 1 (hook) and Agent 2 (scenes), with heuristic fallbacks
+  claude_agents.py    Sonnet 5.5 for Agent 1 (hook) and Agent 2 (≤8 scenes), with heuristic fallbacks
   lyrics.py           lrclib.net lyrics, LRC parser, approximate timing
   agent1_extractor.py YouTube search, yt-dlp download, clip cutting
   agent2_visual.py    image generation, seeds, regeneration

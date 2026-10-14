@@ -2,8 +2,8 @@
 
 Agent 1 - pick_hook(): reads the timed lyrics of the whole song and chooses the most
           viral continuous span (chorus / quotable / peak).
-Agent 2 - plan_scenes(): splits that span's lyric lines into caption phrases and
-          writes ONE style bible + one image prompt per phrase, so every image shares
+Agent 2 - plan_scenes(): tokenizes the clip's lyrics into at most 8 meaningful statements,
+          one scene (image) each, with ONE style bible so every image shares
           the same vibe.
 
 Both work WITHOUT a key (deterministic heuristics) - the response says which one ran.
@@ -136,39 +136,106 @@ def pick_hook(song: str, artist: str, lines: list[Line], duration: float,
 
 # ─────────────────────── Agent 2: Aesthetic Storyboarder ───────────────────────
 
+MAX_SCENES = 8  # hard cap for the whole clip: one image per statement, never more than 8
+
 SCENE_SYSTEM = """You are the Aesthetic Storyboarder for a daily Instagram music-edit page.
-You get the lyric lines of one short clip, numbered, with clip-relative timings.
-1. For EVERY line, split it into 1-4 caption phrases: meaningful words or mini sentences (usually 1-5 words)
-   that read well one at a time on screen. Phrases must be the line's exact words in order, nothing added or dropped.
-2. Define ONE style bible that every image follows: 4-5 hex palette colours, colour grade, lighting,
-   subject style, texture and mood. Derive it from the song's mood, the vibe request and the lyrics.
-3. For each phrase write "prompt": one sentence image-generation prompt that shows the phrase's MEANING
-   in the style bible. Concrete visual nouns only. No text or lyrics inside the image, no real people's names,
+You get the lyrics of ONE short clip as numbered lines with timings. Tokenize the clip into meaningful statements.
+1. Split the clip into 7 or 8 scenes, never more than {max_scenes}. Each scene is one meaningful word group or
+   statement (usually 3-10 words) that reads as one idea on screen.
+   The scenes must cover the whole clip in order: joining all scene "text" values gives back the lyric words exactly,
+   with nothing added, dropped or reordered. Split at natural phrase boundaries.
+2. Define ONE style bible shared by every image: 4-5 hex palette colours, colour grade, lighting, subject style,
+   texture and mood, derived from the song's mood, the vibe request and the lyrics.
+3. For each scene write "prompt": one sentence image-generation prompt that shows the scene's meaning in the
+   style bible. Concrete visual nouns only. No text or lyrics inside the image, no real people's names,
    no brands, no film titles.
-Keep every image in one colour world and one kind of subject.
+Every image must share one colour world and one kind of subject, so the whole reel has one accent.
 Return JSON: {{"style": {{"name": str, "palette": [hex...], "grade": str, "lighting": str,
 "subject_style": str, "texture": str, "mood": str}},
-"lines": [{{"line": int, "phrases": [{{"text": str, "prompt": str}}]}}]}}"""
+"scenes": [{{"text": str, "prompt": str}}]}}"""
 
 
-def _heuristic_split(text: str) -> list[str]:
-    if len(text.split()) <= 4:
-        return [text]
-    out: list[str] = []
-    for part in re.split(r"(?<=[,;:.!?])\s+", text):
-        w = part.split()
-        out.extend(" ".join(w[k : k + 4]) for k in range(0, len(w), 4))
-    return [o for o in out if o]
+class _Timeline:
+    """Maps the normalized character positions of the lyrics to clip time (linear inside each line)."""
+
+    def __init__(self, lines: list[Line]):
+        self.lines = lines
+        self.starts: list[int] = []
+        total = 0
+        for l in lines:
+            self.starts.append(total)
+            total += len(_norm(l.text))
+        self.total = total
+
+    def time_at(self, g: int) -> float:
+        if g >= self.total:
+            return self.lines[-1].end
+        for i, l in enumerate(self.lines):
+            n = len(_norm(l.text))
+            if n and self.starts[i] <= g < self.starts[i] + n:
+                return l.start + (g - self.starts[i]) / n * (l.end - l.start)
+        return self.lines[-1].end
 
 
-def _distribute(start: float, end: float, items: list[tuple[str, str]]) -> list[tuple[float, float, tuple[str, str]]]:
-    weights = [max(len(t), 1) for t, _ in items]
-    total, t, out = sum(weights), start, []
-    for item, w in zip(items, weights):
-        d = (end - start) * w / total
-        out.append((t, t + d, item))
-        t += d
+def _heuristic_pieces(lines: list[Line], k: int) -> list[str]:
+    """Split the lyric words into k chunks of roughly equal length.
+
+    Cuts are preferred at the end of a phrase (punctuation or a line end) and only
+    fall back to any word boundary when no phrase end comes soon enough.
+    """
+    words: list[tuple[str, bool]] = []
+    for l in lines:
+        toks = [w for w in l.text.split() if _norm(w)]
+        for j, w in enumerate(toks):
+            words.append((w, j == len(toks) - 1 or w[-1] in ",;:.!?"))
+    if not words:
+        return []
+    k = max(1, min(k, MAX_SCENES, len(words)))
+    total = sum(len(_norm(w)) for w, _ in words)
+    target = total / k
+    pieces: list[list[str]] = []
+    cur: list[str] = []
+    acc = 0
+    for w, phrase_end in words:
+        cur.append(w)
+        acc += len(_norm(w))
+        due = len(pieces) < k - 1 and acc >= target * (len(pieces) + 1)
+        overdue = acc >= target * (len(pieces) + 1) * 1.3
+        if due and (phrase_end or overdue):
+            pieces.append(cur)
+            cur = []
+    if cur:
+        pieces.append(cur)
+    return [" ".join(p) for p in pieces]
+
+
+def _valid_claude_scenes(raw: Any, lines: list[Line]) -> list[tuple[str, str]]:
+    if not isinstance(raw, list) or not (1 <= len(raw) <= MAX_SCENES):
+        raise ValueError(f"expected 1-{MAX_SCENES} scenes, got {len(raw) if isinstance(raw, list) else 'none'}")
+    out = []
+    for sc in raw:
+        text = str(sc.get("text", "")).strip()
+        if not _norm(text):
+            raise ValueError("empty scene text")
+        out.append((text, str(sc.get("prompt") or text).strip()))
+    if _norm("".join(t for t, _ in out)) != _norm("".join(l.text for l in lines)):
+        raise ValueError("scenes do not cover the lyrics exactly")
     return out
+
+
+def _scenes_from_pieces(pieces: list[tuple[str, str]], lines: list[Line], clip_len: float) -> list[dict]:
+    tl = _Timeline(lines)
+    scenes, g = [], 0
+    for text, prompt in pieces:
+        n = len(_norm(text))
+        start, end = tl.time_at(g), tl.time_at(g + n)
+        scenes.append({"text": text, "start": round(start, 3), "end": round(max(start, end), 3), "prompt": prompt})
+        g += n
+    scenes[0]["start"] = 0.0
+    scenes[-1]["end"] = round(clip_len, 3)
+    for a, b in zip(scenes, scenes[1:]):  # neighbours share one boundary, so scenes tile the clip
+        b["start"] = a["end"] = round(min(max(a["end"], a["start"]), clip_len), 3)
+    return scenes
 
 
 def _merge_short(scenes: list[dict], min_dur: float = 1.2) -> list[dict]:
@@ -188,14 +255,15 @@ def _merge_short(scenes: list[dict], min_dur: float = 1.2) -> list[dict]:
 def plan_scenes(song: str, artist: str, clip_lines: list[Line], clip_len: float,
                 vibe_name: str, style_suffix: str, fallback_palette: list[str],
                 vibe_hint: str = "") -> dict:
-    """clip_lines are clip-relative (0 .. clip_len). Returns {'style', 'scenes', 'source'}.
+    """Tokenize the clip into at most MAX_SCENES statements, one image each, one shared style.
 
+    clip_lines are clip-relative (0 .. clip_len). Returns {'style', 'scenes', 'source'}.
     Each scene: {id, text, start, end, duration, prompt}; scenes tile the whole clip.
     """
     lines = clip_lines or [Line(0.0, clip_len, song)]
     style: dict = {"name": vibe_name, "palette": fallback_palette, "subject_style": style_suffix}
-    plan: dict[int, list[dict]] = {}
     source = "heuristic"
+    pieces: list[tuple[str, str]] | None = None
     claude_suffix = ""
 
     if available():
@@ -204,45 +272,26 @@ def plan_scenes(song: str, artist: str, clip_lines: list[Line], clip_len: float,
                 f"Vibe request: {vibe_hint or 'none - choose what suits the song'}\n"
                 f"Clip length: {clip_len:.1f}s\nLines (line_no, start_s, end_s, text):\n{numbered}")
         try:
-            data = _ask_json(SCENE_SYSTEM, user, 6000)
+            data = _ask_json(SCENE_SYSTEM.format(max_scenes=MAX_SCENES), user, 4000)
             style.update({k: v for k, v in (data.get("style") or {}).items() if v})
-            for item in data.get("lines", []):
-                plan[int(item["line"])] = item.get("phrases", [])
+            pieces = _valid_claude_scenes(data.get("scenes"), lines)
             claude_suffix = ", ".join(str(style[k]) for k in ("subject_style", "grade", "lighting", "texture", "mood") if style.get(k))
             claude_suffix += ", 9:16 vertical portrait, photorealistic, 8k"
             source = MODEL
-        except Exception as e:
-            source = f"heuristic (Claude failed: {type(e).__name__})"
+        except Exception as e:  # invalid JSON, wrong coverage, too many scenes, network...
+            pieces = None
+            source = f"heuristic (Claude failed: {type(e).__name__}: {str(e)[:90]})"
     elif not os.getenv("ANTHROPIC_API_KEY"):
         source = "heuristic (no ANTHROPIC_API_KEY)"
 
-    raw: list[tuple[float, float, tuple[str, str]]] = []
-    scenes: list[dict] = []
-    for i, line in enumerate(lines):
-        s0, e0 = max(0.0, line.start), min(clip_len, line.end)
-        if e0 <= s0:
-            continue
-        phrases = plan.get(i) or []
-        if phrases and _norm("".join(str(p.get("text", "")) for p in phrases)) == _norm(line.text):
-            items = [(str(p["text"]).strip(), f"{str(p.get('prompt') or p['text']).strip()}, {claude_suffix}")
-                     for p in phrases if str(p.get("text", "")).strip()]
-        else:
-            items = [(t, f"{t.strip(' ,;:')}, {style_suffix}") for t in _heuristic_split(line.text)]
-        if items:
-            raw.extend(_distribute(s0, e0, items))
+    if pieces is not None:
+        pieces = [(t, f"{p}, {claude_suffix}") for t, p in pieces]
+    else:
+        k = min(MAX_SCENES, max(7, round(clip_len / 3.2)))
+        pieces = [(t, f"{t.strip(' ,;:')}, {style_suffix}") for t in _heuristic_pieces(lines, k)]
 
-    for s, e, (text, prompt) in raw:
-        scenes.append({"text": text, "start": round(s, 3), "end": round(e, 3), "prompt": prompt})
-    scenes = _merge_short(scenes)
-    if not scenes:  # no usable lyrics at all: one scene for the whole clip
-        scenes = [{"text": song, "start": 0.0, "end": round(clip_len, 3), "prompt": f"{song}, {style_suffix}"}]
-
-    scenes[0]["start"] = 0.0
-    scenes[-1]["end"] = round(clip_len, 3)
-    for a, b in zip(scenes, scenes[1:]):  # close gaps so scenes tile the clip
-        mid = round((a["end"] + b["start"]) / 2, 3)
-        a["end"] = b["start"] = mid
-    for k, sc in enumerate(scenes, start=1):
-        sc["id"] = k
+    scenes = _merge_short(_scenes_from_pieces(pieces, lines, clip_len))
+    for n, sc in enumerate(scenes, start=1):
+        sc["id"] = n
         sc["duration"] = round(max(0.1, sc["end"] - sc["start"]), 3)
     return {"style": style, "scenes": scenes, "source": source}
