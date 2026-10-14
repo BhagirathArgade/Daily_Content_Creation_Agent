@@ -87,44 +87,43 @@ class RealAudioExtractorAgent:
 
     def download_audio(self, youtube_url: str, song_title: str) -> Dict[str, Any]:
         """
-        Downloads audio from YouTube as MP3 using yt-dlp.
-        Returns path + metadata.
+        Downloads the audio stream with yt-dlp, then converts it to MP3 with the bundled ffmpeg.
+        yt-dlp's own post-processing is skipped on purpose: it needs a system ffprobe.
         """
         import yt_dlp
+        from backend.ffmpeg_setup import convert_to_mp3
 
         safe_name = re.sub(r"[^\w\s-]", "", song_title.lower()).strip().replace(" ", "_")[:40]
-        output_template = os.path.join(self.AUDIO_DIR, f"{safe_name}.%(ext)s")
         expected_path = os.path.join(self.AUDIO_DIR, f"{safe_name}.mp3")
 
         # Skip re-download if already cached
         if os.path.exists(expected_path):
             return {"path": expected_path, "status": "cached", "title": song_title}
 
+        raw_template = os.path.join(self.AUDIO_DIR, f"{safe_name}_raw.%(ext)s")
         ydl_opts = {
-            "format": "bestaudio/best",
-            "outtmpl": output_template,
+            "format": "bestaudio[ext=m4a]/bestaudio/best",
+            "outtmpl": raw_template,
             "quiet": True,
             "no_warnings": True,
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": "mp3",
-                "preferredquality": "192",
-            }],
         }
 
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=True)
-                title = info.get("title", song_title)
-                duration = info.get("duration", 0)
-                uploader = info.get("uploader", "Unknown")
-                return {
-                    "path": expected_path,
-                    "status": "downloaded",
-                    "title": title,
-                    "duration": duration,
-                    "uploader": uploader,
-                }
+                raw_path = ydl.prepare_filename(info)
+            convert_to_mp3(raw_path, expected_path)
+            try:
+                os.remove(raw_path)
+            except OSError:
+                pass
+            return {
+                "path": expected_path,
+                "status": "downloaded",
+                "title": info.get("title", song_title),
+                "duration": info.get("duration", 0),
+                "uploader": info.get("uploader", "Unknown"),
+            }
         except Exception as e:
             return {"path": None, "status": "error", "error": str(e), "title": song_title}
 
