@@ -39,7 +39,8 @@ OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 sys.path.insert(0, BASE_DIR)
-from backend import claude_agents, visual_director, visual_renderer  # noqa: E402
+from backend import claude_agents, reel_composer, story_planner, visual_renderer  # noqa: E402
+from backend import visual_sources  # noqa: E402
 from backend.agent1_extractor import RealAudioExtractorAgent  # noqa: E402
 from backend.agent3_composer import VIDEOS_DIR, generate_instagram_pack  # noqa: E402
 from backend.audio_analysis import analyze_audio  # noqa: E402
@@ -52,6 +53,8 @@ app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
 
 # Last visual plan per clip file, so Regenerate keeps the same look and only changes the seed.
 LAST_PLANS: dict[str, dict] = {}
+MEDIA_DIR = os.path.join(OUTPUTS_DIR, "media")
+os.makedirs(MEDIA_DIR, exist_ok=True)
 
 
 def _url(path: str) -> str:
@@ -69,8 +72,8 @@ def _sse(event: str, message: str, data: Optional[dict] = None) -> str:
 
 def _scenes_for_gallery(plan: dict) -> list[dict]:
     return [
-        {"id": i + 1, "text": f"Segment {i + 1} · {s['motion']}", "start": s["start"], "end": s["end"],
-         "duration": round(s["end"] - s["start"], 3), "prompt": s.get("motif", ""),
+        {"id": i + 1, "text": s.get("concept", f"Segment {i + 1}"), "start": s["start"], "end": s["end"],
+         "duration": round(s["end"] - s["start"], 3), "prompt": s.get("query", ""),
          "image_url": "", "image_source": "", "vibe_name": plan.get("mood", "")}
         for i, s in enumerate(plan["segments"])
     ]
@@ -96,7 +99,9 @@ def health():
     return {
         "claude_enabled": claude_agents.available(),
         "model": claude_agents.MODEL,
-        "render": f"{visual_renderer.OUT_W}x{visual_renderer.OUT_H} @ {visual_renderer.FPS}fps, text-free, sound-reactive",
+        "render": f"{visual_renderer.OUT_W}x{visual_renderer.OUT_H} @ {visual_renderer.FPS}fps, text-free, Instagram-ready MP4",
+        "stock_video": "Pexels" if os.getenv("PEXELS_API_KEY") else ("Pixabay" if os.getenv("PIXABAY_API_KEY") else "none (add PEXELS_API_KEY or PIXABAY_API_KEY)"),
+        "images": "Pollinations.ai (free, no key)",
         "ffmpeg": bool(ensure_ffmpeg()),
         "author": "Bhagirath Argade",
     }
@@ -175,17 +180,18 @@ async def process_pipeline(req: ProcessRequest):
             feats = await asyncio.to_thread(analyze_audio, clip_path)
             yield _sse("progress", f"[Agent 2] Tempo about {feats['bpm']:.0f} BPM · {feats['duration']:.1f}s")
 
-            yield _sse("progress", f"[Agent 2] Understanding the meaning of the clip with {mode}…")
-            plan = await asyncio.to_thread(visual_director.plan_look, req.song_title, artist, lyrics_text, feats["duration"], feats)
+            yield _sse("progress", f"[Agent 2] Understanding the clip's meaning and planning realistic shots with {mode}…")
+            plan = await asyncio.to_thread(story_planner.plan_story, req.song_title, artist, lyrics_text, feats["duration"], feats, lines=clip_lines)
             LAST_PLANS[os.path.basename(clip_path)] = plan
-            yield _sse("progress", f"[Agent 2] Mood: {plan.get('mood', '')} · {len(plan['segments'])} segments ({plan['source']})")
+            yield _sse("progress", f"[Agent 2] Mood: {plan.get('mood', '')} · {len(plan['segments'])} shots · look: {plan['look']} ({plan['source']})")
 
             slug = _slug(req.song_title)
-            yield _sse("progress", "[Agent 3] Rendering the 1080×1920 animated reel in sync with the clip (this takes a few minutes)…")
-            video_path = await asyncio.to_thread(
-                visual_renderer.render_reel, clip_path, plan, os.path.join(VIDEOS_DIR, f"{slug}_reel.mp4"), 0, feats
+            yield _sse("progress", "[Agent 3] Finding realistic footage for each shot and composing the 1080×1920 reel (a few minutes)…")
+            rendered = await asyncio.to_thread(
+                reel_composer.compose_reel, clip_path, plan, os.path.join(VIDEOS_DIR, f"{slug}_reel.mp4"), 0, feats, None, MEDIA_DIR
             )
-            yield _sse("progress", "[Agent 3] Reel rendered")
+            video_path = rendered["path"]
+            yield _sse("progress", f"[Agent 3] Reel ready · shot sources: {', '.join(sorted(set(rendered['sources'])))}")
 
             hook_line = lines[hook["first_line"]].text if hook.get("first_line") is not None and lines else req.song_title
             pack = generate_instagram_pack(req.song_title, artist, plan.get("mood", ""), hook_line, video_path)
@@ -207,12 +213,15 @@ async def process_pipeline(req: ProcessRequest):
                 "agent2": {
                     "mood": plan.get("mood", ""),
                     "meaning": plan.get("meaning", ""),
-                    "style": {"palette": plan["palette"], "mood": plan.get("mood", "")},
+                    "style": {"palette": plan["palette"], "mood": plan.get("mood", ""), "look": plan["look"]},
+                    "look": plan["look"],
+                    "suggestions": plan["suggestions"],
+                    "sources": rendered["sources"],
                     "source": plan["source"],
                     "bpm": feats["bpm"],
                     "scenes": _scenes_for_gallery(plan),
                 },
-                "agent3": {"video_url": _url(video_path), "resolution": "1080x1920", "fps": visual_renderer.FPS, **pack},
+                "agent3": {"video_url": _url(video_path), "resolution": "1080x1920", "fps": visual_renderer.FPS, "look": plan["look"], **pack},
             }
             yield _sse("complete", "[Pipeline Complete] Your Instagram Reel is ready!", result)
         except Exception as e:
@@ -227,6 +236,7 @@ class RegenerateRequest(BaseModel):
     song_title: str = ""
     seed: int = 0               # 0 = pick a new random seed
     audio_clip: str = ""        # agent1.audio_clip from the last run
+    look: str = ""              # optional colour look from the Suggest Edits section
 
 
 @app.post("/api/regenerate")
@@ -242,13 +252,19 @@ async def regenerate_visuals(req: RegenerateRequest):
             seed = req.seed if req.seed > 0 else random.randint(1, 999_999)
             yield _sse("progress", f"[Agent 3] New visual variation (seed {seed}) for the same clip and mood…")
             feats = await asyncio.to_thread(analyze_audio, clip_file)
-            plan = LAST_PLANS.get(os.path.basename(clip_file)) or visual_director.heuristic_plan(feats["duration"], feats)
+            plan = LAST_PLANS.get(os.path.basename(clip_file)) or story_planner.heuristic_story(feats["duration"], feats)
+            if req.look in reel_composer.LOOKS:
+                plan = {**plan, "look": req.look}
+                LAST_PLANS[os.path.basename(clip_file)] = plan
             out = os.path.join(VIDEOS_DIR, f"{_slug(req.song_title)}_reel_s{seed}.mp4")
-            video_path = await asyncio.to_thread(visual_renderer.render_reel, clip_file, plan, out, seed, feats)
+            rendered = await asyncio.to_thread(reel_composer.compose_reel, clip_file, plan, out, seed, feats, plan["look"], MEDIA_DIR)
+            video_path = rendered["path"]
             yield _sse("complete", "Regeneration complete - new visuals ready!", {
                 "seed": seed,
                 "scenes": _scenes_for_gallery(plan),
                 "video_url": _url(video_path),
+                "look": plan["look"],
+                "sources": rendered["sources"],
             })
         except Exception as e:
             yield _sse("error", f"Regeneration error: {type(e).__name__}: {e}")

@@ -16,6 +16,8 @@ const state = {
   selectedVibe: "bollywood_drama",
   currentScenes: [],      // scenes from last run
   currentRegenSeed: 1,
+  selectedLook: "",       // colour look chosen in Suggest Edits
+  currentLook: "",        // colour look used by the current reel
   currentAudioClip: "",  // hook clip URL from the last run
   currentVideoUrl: "",
   isProcessing: false,
@@ -330,9 +332,40 @@ function renderResult(data) {
   // Scenes gallery
   renderScenesGallery(state.currentScenes);
 
+  // Suggest Edits
+  state.currentLook = a2.look || a3.look || "";
+  state.selectedLook = state.currentLook;
+  renderEditSuggestions(a2);
+
   // Caption
   captionText.textContent = a3.full_caption || "";
   postTime.innerHTML = `<i class="fa-regular fa-clock"></i> ${a3.recommended_post_time || ""}`;
+}
+
+function renderEditSuggestions(a2) {
+  const box = document.getElementById("suggestEdits");
+  const list = document.getElementById("suggestList");
+  const meaning = document.getElementById("suggestMeaning");
+  const lookSel = document.getElementById("lookSelect");
+  const suggestions = a2.suggestions || [];
+  if (!suggestions.length && !a2.meaning) { box.classList.add("hidden"); return; }
+
+  meaning.textContent = a2.meaning ? `What the song says: ${a2.meaning}` : "";
+  list.innerHTML = "";
+  suggestions.forEach(s => {
+    const li = document.createElement("li");
+    li.className = "pl-3 border-l-2 border-purple-500";
+    const t = document.createElement("div");
+    t.className = "font-bold text-purple-200";
+    t.textContent = s.title || "";
+    const d = document.createElement("div");
+    d.className = "text-slate-400";
+    d.textContent = s.detail || "";
+    li.append(t, d);
+    list.appendChild(li);
+  });
+  if (state.currentLook) lookSel.value = state.currentLook;
+  box.classList.remove("hidden");
 }
 
 function renderScenesGallery(scenes) {
@@ -389,6 +422,15 @@ copyCaptionBtn.addEventListener("click", () => {
 });
 
 // ─── REGENERATE VISUALS ───────────────────────────────────────────────────────
+document.getElementById("lookSelect").addEventListener("change", e => {
+  state.selectedLook = e.target.value;
+});
+
+document.getElementById("applyLookBtn").addEventListener("click", () => {
+  state.selectedLook = document.getElementById("lookSelect").value;
+  regenerateBtn.click();
+});
+
 regenerateBtn.addEventListener("click", async () => {
   if (!state.currentScenes.length || state.isProcessing) return;
   state.isProcessing = true;
@@ -408,6 +450,7 @@ regenerateBtn.addEventListener("click", async () => {
         vibe: state.selectedVibe,
         song_title: state.selectedSong?.title || "",
         seed: state.currentRegenSeed,
+        look: state.selectedLook || "",
       }),
     });
 
@@ -435,6 +478,7 @@ regenerateBtn.addEventListener("click", async () => {
 
         if (evt === "complete") {
           state.currentScenes = payload.data?.scenes || state.currentScenes;
+          if (payload.data?.look) { state.currentLook = payload.data.look; state.selectedLook = payload.data.look; }
           renderScenesGallery(state.currentScenes);
           if (payload.data?.video_url) {
             state.currentVideoUrl = payload.data.video_url;

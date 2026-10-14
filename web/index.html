@@ -289,6 +289,27 @@
                     <div id="scenesGrid" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1"></div>
                   </div>
 
+                  <!-- Suggest Edits -->
+                  <div id="suggestEdits" class="hidden p-3 rounded-xl bg-slate-950/80 border border-purple-900/60">
+                    <div class="text-xs font-bold uppercase tracking-wider text-purple-300 mb-2 flex items-center gap-2">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> Suggest Edits
+                    </div>
+                    <p id="suggestMeaning" class="text-[11px] text-slate-400 mb-2"></p>
+                    <ul id="suggestList" class="space-y-2 text-xs text-slate-200 mb-3"></ul>
+                    <div class="flex flex-wrap items-center gap-2">
+                      <label for="lookSelect" class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Colour look</label>
+                      <select id="lookSelect" class="bg-slate-900 border border-slate-700 rounded-lg text-xs px-2 py-1 text-slate-200">
+                        <option value="cinematic_warm">Cinematic warm</option>
+                        <option value="moody_blue">Moody blue</option>
+                        <option value="soft_pastel">Soft pastel</option>
+                        <option value="bw_film">Black &amp; white film</option>
+                      </select>
+                      <button id="applyLookBtn" class="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition">
+                        <i class="fa-solid fa-rotate"></i> Apply look &amp; regenerate
+                      </button>
+                    </div>
+                  </div>
+
                   <!-- Audio Player -->
                   <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800">
                     <div class="text-[10px] font-bold uppercase tracking-wider text-rose-400 mb-2 flex items-center gap-1.5">

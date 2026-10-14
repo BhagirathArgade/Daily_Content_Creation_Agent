@@ -193,8 +193,8 @@ def test_process_stream_renders_visual_reel(tmp_path, monkeypatch):
     import json as _json
     payload = _json.loads([l for l in r.text.split("\n") if l.startswith("data:") and '"agent3"' in l][-1][5:])["data"]
     assert payload["agent1"]["lyrics"]["synced"] is True
-    assert payload["agent2"]["scenes"] and all(s["image_url"] == "" for s in payload["agent2"]["scenes"])
-    assert payload["agent2"]["scenes"][0]["text"].startswith("Segment 1")
+    assert payload["agent2"]["scenes"] and len(payload["agent2"]["scenes"]) <= 8
+    assert payload["agent2"]["suggestions"] and payload["agent2"]["look"] in ("cinematic_warm", "moody_blue", "soft_pastel", "bw_film")
     assert payload["agent3"]["video_url"].startswith("/outputs/videos/")
     assert payload["agent3"]["resolution"] == "1080x1920"
 
@@ -283,3 +283,65 @@ def test_reel_renders_at_1080x1920_with_audio(tmp_path):
     info = subprocess.run([sys.executable, "-c", "import imageio_ffmpeg as i,subprocess,sys;"
                            "subprocess.run([i.get_ffmpeg_exe(),'-i',sys.argv[1]])", out], capture_output=True, text=True).stderr
     assert "1080x1920" in info and "Audio:" in info
+
+
+# ─── Story planner, footage sources and reel composer (offline) ─────────────
+
+def _tone(tmp_path, seconds=3):
+    src = tmp_path / "tone.mp3"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", f"sine=frequency=330:duration={seconds}",
+                    "-c:a", "libmp3lame", str(src)], check=True)
+    return str(src)
+
+
+def test_story_heuristic_has_at_most_eight_segments_covering_clip(monkeypatch):
+    from backend import story_planner, visual_director
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    import numpy as np
+    feats = {"duration": 20.0, "rms": np.full(600, 0.1), "onset": np.zeros(600), "centroid": np.full(600, 0.5), "bpm": 100, "fps": 30}
+    plan = story_planner.plan_story("Test Song", "", "midnight rain on an empty street", 20.0, feats, lines=SONG)
+    segs = plan["segments"]
+    assert 1 <= len(segs) <= 8
+    assert segs[0]["start"] == pytest.approx(0, abs=0.01)
+    assert segs[-1]["end"] == pytest.approx(20.0, abs=0.05)
+    assert all(s["end"] > s["start"] and s["query"] and s["prompt"] and s["shot"] in story_planner.SHOT_STYLES for s in segs)
+    assert plan["look"] in story_planner.LOOK_LABELS and plan["suggestions"]
+
+
+def test_story_validation_rejects_bad_segments():
+    from backend import story_planner
+    with pytest.raises(ValueError):
+        story_planner._validate_segments(None, 10.0)
+    good = story_planner._validate_segments([{"start": 0, "end": 5, "concept": "rain", "query": "rain", "prompt": "rain on glass", "shot": "static"},
+                                             {"start": 5, "end": 10, "concept": "city", "query": "city", "prompt": "city at night", "shot": "bogus"}], 10.0)
+    assert good and len(good) <= 8 and all(s["shot"] in story_planner.SHOT_STYLES for s in good)
+
+
+def test_visual_sources_fail_soft_without_keys(tmp_path, monkeypatch):
+    from backend import visual_sources
+    monkeypatch.delenv("PEXELS_API_KEY", raising=False)
+    monkeypatch.delenv("PIXABAY_API_KEY", raising=False)
+    monkeypatch.setattr(visual_sources, "_download", lambda url, dest: None)
+    assert visual_sources.find_stock_video("rain on window", str(tmp_path)) is None
+    assert visual_sources.generate_image("a lamp in fog", str(tmp_path / "x.jpg")) in (None, str(tmp_path / "x.jpg"))
+
+
+def test_reel_composer_falls_back_to_sound_animation_and_renders_1080x1920(tmp_path, monkeypatch):
+    from backend import reel_composer, visual_sources, visual_renderer
+    from backend.audio_analysis import analyze_audio
+    monkeypatch.setattr(visual_sources, "find_stock_video", lambda *a, **k: None)
+    monkeypatch.setattr(visual_sources, "generate_image", lambda *a, **k: None)
+    clip = _tone(tmp_path, 3)
+    feats = analyze_audio(clip)
+    plan = {"palette": ["#0b132b", "#1c2541", "#3a506b", "#5bc0be", "#e0fbfc"], "look": "cinematic_warm",
+            "segments": [{"start": 0, "end": 1.5, "motion": "waves", "shot": "static", "concept": "rain",
+                          "query": "rain on a window", "prompt": "rain on a window at night"},
+                         {"start": 1.5, "end": 3.0, "motion": "orbs", "shot": "slow push-in", "concept": "city",
+                          "query": "city lights", "prompt": "city lights at night"}]}
+    out = str(tmp_path / "reel.mp4")
+    result = reel_composer.compose_reel(clip, plan, out, seed=1, feats=feats, work_dir=str(tmp_path / "media"))
+    assert result["sources"] == ["sound animation", "sound animation"]
+    info = subprocess.run([sys.executable, "-c", "import imageio_ffmpeg as i,subprocess,sys;"
+                           "subprocess.run([i.get_ffmpeg_exe(),'-i',sys.argv[1]])", out], capture_output=True, text=True).stderr
+    assert "1080x1920" in info and "Audio:" in info
+
