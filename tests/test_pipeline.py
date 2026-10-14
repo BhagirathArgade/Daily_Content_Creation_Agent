@@ -171,14 +171,12 @@ def test_end_to_end_reel_renders(tmp_path, monkeypatch):
     assert dur == pytest.approx(clip_len, abs=1.0)
 
 
-def test_process_stream_runs_all_three_agents(tmp_path, monkeypatch):
+def test_process_stream_renders_visual_reel(tmp_path, monkeypatch):
     """The /api/process SSE flow, with only the YouTube download and lyrics lookup stubbed."""
     from fastapi.testclient import TestClient
     import backend.app as app_mod
 
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.setattr(agent2_visual, "generate_image",
-                        lambda p, d, s, pal, timeout=60: (agent2_visual.procedural_backdrop(p, pal, d), "procedural")[1])
     src = tmp_path / "tone.mp3"
     subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=60",
                     "-c:a", "libmp3lame", str(src)], check=True)
@@ -189,14 +187,16 @@ def test_process_stream_runs_all_three_agents(tmp_path, monkeypatch):
 
     r = TestClient(app_mod.app).post("/api/process", json={
         "youtube_url": "https://www.youtube.com/watch?v=x", "song_title": "Test Song",
-        "vibe": "golden_hour", "target_len": 12})
+        "vibe": "golden_hour", "target_len": 10})
     assert "event: error" not in r.text, r.text[:500]
     assert "event: complete" in r.text
     import json as _json
     payload = _json.loads([l for l in r.text.split("\n") if l.startswith("data:") and '"agent3"' in l][-1][5:])["data"]
     assert payload["agent1"]["lyrics"]["synced"] is True
-    assert payload["agent2"]["scenes"] and payload["agent2"]["scenes"][0]["image_url"].startswith("/outputs/images/")
+    assert payload["agent2"]["scenes"] and all(s["image_url"] == "" for s in payload["agent2"]["scenes"])
+    assert payload["agent2"]["scenes"][0]["text"].startswith("Segment 1")
     assert payload["agent3"]["video_url"].startswith("/outputs/videos/")
+    assert payload["agent3"]["resolution"] == "1080x1920"
 
 
 def test_search_endpoint_reports_errors_and_returns_items(monkeypatch):
@@ -222,3 +222,64 @@ def test_bundled_ffmpeg_converts_audio_to_mp3(tmp_path):
     dst = tmp_path / "out.mp3"
     ffmpeg_setup.convert_to_mp3(str(src), str(dst))
     assert dst.exists() and dst.stat().st_size > 1000
+
+
+def _fake_features(duration=10.0, fps=30):
+    import numpy as np
+    n = int(duration * fps)
+    rng = np.random.default_rng(0)
+    return {"fps": fps, "duration": duration, "rms": rng.random(n), "onset": rng.random(n),
+            "centroid": rng.random(n), "bpm": 120.0}
+
+
+def test_director_uses_claude_plan_when_valid_and_falls_back_when_not(monkeypatch):
+    from backend import visual_director
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
+    feats = _fake_features(10.0)
+    bad = {"palette": ["#000000"] * 5, "segments": [{"start": 0, "end": 5, "motion": "laser", "motif": "x"}]}
+    monkeypatch.setattr(claude_agents, "_ask_json", lambda *a, **k: bad)
+    plan = visual_director.plan_look("T", "", "some lyrics", 10.0, feats)
+    assert plan["source"].startswith("heuristic (Claude failed")
+    good = {"mood": "dreamy", "meaning": "a night walk", "palette": ["#101010", "#202020", "#303030", "#404040", "#505050"],
+            "segments": [{"start": 0, "end": 4, "motion": "aurora", "motif": "lamp"},
+                         {"start": 4, "end": 10, "motion": "orbs", "motif": "moon"}]}
+    monkeypatch.setattr(claude_agents, "_ask_json", lambda *a, **k: good)
+    plan = visual_director.plan_look("T", "", "some lyrics", 10.0, feats)
+    assert plan["source"] == claude_agents.MODEL and len(plan["segments"]) == 2
+    assert plan["segments"][-1]["end"] == 10.0
+
+
+def test_heuristic_plan_covers_clip_with_at_most_eight_segments():
+    from backend import visual_director, visual_renderer
+    for dur in (4.0, 25.0, 45.0):
+        plan = visual_director.heuristic_plan(dur, _fake_features(dur))
+        segs = plan["segments"]
+        assert 1 <= len(segs) <= 8
+        assert segs[0]["start"] == 0 and segs[-1]["end"] == pytest.approx(dur, abs=0.01)
+        assert all(a["end"] == pytest.approx(b["start"], abs=0.01) for a, b in zip(segs, segs[1:]))
+        assert all(s["motion"] in visual_renderer.MOTIONS for s in segs)
+
+
+def test_audio_analysis_matches_clip_length(tmp_path):
+    from backend.audio_analysis import analyze_audio
+    src = tmp_path / "tone.mp3"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=3",
+                    "-c:a", "libmp3lame", str(src)], check=True)
+    f = analyze_audio(str(src))
+    assert f["duration"] == pytest.approx(3.0, abs=0.1)
+    assert len(f["rms"]) == len(f["onset"]) == len(f["centroid"]) == 90
+    assert 0 <= f["rms"].min() and f["rms"].max() <= 1.0
+
+
+def test_reel_renders_at_1080x1920_with_audio(tmp_path):
+    from backend import visual_renderer
+    src = tmp_path / "tone.mp3"
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=330:duration=2",
+                    "-c:a", "libmp3lame", str(src)], check=True)
+    plan = {"palette": ["#0b132b", "#1c2541", "#3a506b", "#5bc0be", "#e0fbfc"],
+            "segments": [{"start": 0, "end": 1.0, "motion": "waves", "motif": ""},
+                         {"start": 1.0, "end": 2.0, "motion": "particles", "motif": ""}]}
+    out = visual_renderer.render_reel(str(src), plan, str(tmp_path / "reel.mp4"), seed=3)
+    info = subprocess.run([sys.executable, "-c", "import imageio_ffmpeg as i,subprocess,sys;"
+                           "subprocess.run([i.get_ffmpeg_exe(),'-i',sys.argv[1]])", out], capture_output=True, text=True).stderr
+    assert "1080x1920" in info and "Audio:" in info

@@ -5,11 +5,11 @@ GitHub: https://github.com/BhagirathArgade/Daily_Content_Creation_Agent
 
 Endpoints:
   GET  /                      → web dashboard
-  GET  /api/health            → which brains are active (Claude / heuristics)
+  GET  /api/health            → which brains are active (Claude / sound-only heuristics)
   GET  /api/search?q=<song>   → YouTube suggestions for a song name
-  POST /api/process           → SSE: download → lyrics → Agent 1 hook → Agent 2 scenes/images → Agent 3 reel
-  POST /api/regenerate        → SSE: same lyrics & prompts, NEW images (+ re-rendered reel)
-  GET  /outputs/...           → generated audio / images / videos
+  POST /api/process           → SSE: download → lyrics → Agent 1 hook → Agent 2 visual plan → Agent 3 reel
+  POST /api/regenerate        → SSE: same clip and plan, new seed → re-rendered reel
+  GET  /outputs/...           → generated audio / videos
 """
 
 import asyncio
@@ -18,7 +18,6 @@ import os
 import random
 import re
 import sys
-import uuid
 from typing import List, Optional
 
 from fastapi import FastAPI, Query
@@ -40,16 +39,19 @@ OUTPUTS_DIR = os.path.join(BASE_DIR, "outputs")
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
 
 sys.path.insert(0, BASE_DIR)
-from backend import agent2_visual, claude_agents  # noqa: E402
-from backend.claude_agents import MAX_SCENES  # noqa: E402
+from backend import claude_agents, visual_director, visual_renderer  # noqa: E402
 from backend.agent1_extractor import RealAudioExtractorAgent  # noqa: E402
-from backend.agent3_composer import VIDEOS_DIR, build_video, generate_instagram_pack  # noqa: E402
-from backend.lyrics import Line, approximate_timing, fetch_lyrics, transcribe_clip  # noqa: E402
+from backend.agent3_composer import VIDEOS_DIR, generate_instagram_pack  # noqa: E402
+from backend.audio_analysis import analyze_audio  # noqa: E402
 from backend.ffmpeg_setup import INSTALL_HELP, ensure_ffmpeg  # noqa: E402
+from backend.lyrics import Line, approximate_timing, fetch_lyrics, transcribe_clip  # noqa: E402
 
-app = FastAPI(title="Daily Content Creation Agent", version="2.1")
+app = FastAPI(title="Daily Content Creation Agent", version="3.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 app.mount("/outputs", StaticFiles(directory=OUTPUTS_DIR), name="outputs")
+
+# Last visual plan per clip file, so Regenerate keeps the same look and only changes the seed.
+LAST_PLANS: dict[str, dict] = {}
 
 
 def _url(path: str) -> str:
@@ -63,6 +65,15 @@ def _slug(s: str) -> str:
 
 def _sse(event: str, message: str, data: Optional[dict] = None) -> str:
     return f"event: {event}\ndata: {json.dumps({'message': message, 'data': data or {}})}\n\n"
+
+
+def _scenes_for_gallery(plan: dict) -> list[dict]:
+    return [
+        {"id": i + 1, "text": f"Segment {i + 1} · {s['motion']}", "start": s["start"], "end": s["end"],
+         "duration": round(s["end"] - s["start"], 3), "prompt": s.get("motif", ""),
+         "image_url": "", "image_source": "", "vibe_name": plan.get("mood", "")}
+        for i, s in enumerate(plan["segments"])
+    ]
 
 
 @app.get("/")
@@ -85,7 +96,7 @@ def health():
     return {
         "claude_enabled": claude_agents.available(),
         "model": claude_agents.MODEL,
-        "image_source": "Pollinations.ai (free) with an offline procedural fallback",
+        "render": f"{visual_renderer.OUT_W}x{visual_renderer.OUT_H} @ {visual_renderer.FPS}fps, text-free, sound-reactive",
         "ffmpeg": bool(ensure_ffmpeg()),
         "author": "Bhagirath Argade",
     }
@@ -112,7 +123,6 @@ class ProcessRequest(BaseModel):
 @app.post("/api/process")
 async def process_pipeline(req: ProcessRequest):
     """Full pipeline, streamed as Server-Sent Events."""
-    preset = agent2_visual.VIBE_PRESETS.get(req.vibe, agent2_visual.VIBE_PRESETS[agent2_visual.DEFAULT_VIBE])
     target = max(10.0, min(45.0, req.target_len))
     min_len, max_len = max(8.0, target * 0.6), target * 1.2
 
@@ -142,7 +152,7 @@ async def process_pipeline(req: ProcessRequest):
                 lines = approximate_timing(lyr["plain"], full_duration)
                 yield _sse("progress", f"[Agent 1] Plain lyrics found ({lyr['source']}) - timing is approximate")
             else:
-                yield _sse("progress", "[Agent 1] No lyrics found online - captions will use the song title")
+                yield _sse("progress", "[Agent 1] No lyrics found online - the sound alone will guide the visuals")
 
             mode = "Claude Sonnet 5.5" if claude_agents.available() else "heuristic (no ANTHROPIC_API_KEY)"
             yield _sse("progress", f"[Agent 1] Choosing the most viral window with {mode}…")
@@ -159,31 +169,26 @@ async def process_pipeline(req: ProcessRequest):
             ]
             if not clip_lines:
                 clip_lines = await asyncio.to_thread(transcribe_clip, clip_path)
-                if clip_lines:
-                    yield _sse("progress", f"[Agent 2] No lyrics for this clip - transcribed the clip itself ({len(clip_lines)} segments)")
-            yield _sse("progress", f"[Agent 2] Tokenizing the clip into meaningful statements (max {MAX_SCENES} scenes)…")
-            plan = await asyncio.to_thread(
-                claude_agents.plan_scenes, req.song_title, artist, clip_lines, clip_len,
-                preset["name"], preset["style_suffix"], preset["palette"], "",
+            lyrics_text = " / ".join(l.text for l in clip_lines)
+
+            yield _sse("progress", "[Agent 2] Analysing the clip's sound: loudness, beats and brightness…")
+            feats = await asyncio.to_thread(analyze_audio, clip_path)
+            yield _sse("progress", f"[Agent 2] Tempo about {feats['bpm']:.0f} BPM · {feats['duration']:.1f}s")
+
+            yield _sse("progress", f"[Agent 2] Understanding the meaning of the clip with {mode}…")
+            plan = await asyncio.to_thread(visual_director.plan_look, req.song_title, artist, lyrics_text, feats["duration"], feats)
+            LAST_PLANS[os.path.basename(clip_path)] = plan
+            yield _sse("progress", f"[Agent 2] Mood: {plan.get('mood', '')} · {len(plan['segments'])} segments ({plan['source']})")
+
+            slug = _slug(req.song_title)
+            yield _sse("progress", "[Agent 3] Rendering the 1080×1920 animated reel in sync with the clip (this takes a few minutes)…")
+            video_path = await asyncio.to_thread(
+                visual_renderer.render_reel, clip_path, plan, os.path.join(VIDEOS_DIR, f"{slug}_reel.mp4"), 0, feats
             )
-            palette = plan["style"].get("palette") or preset["palette"]
-            yield _sse("progress", f"[Agent 2] {len(plan['scenes'])} scenes planned in one shared style ({plan['source']})")
+            yield _sse("progress", "[Agent 3] Reel rendered")
 
-            out_dir = os.path.join(agent2_visual.IMAGES_DIR, _slug(req.song_title))
-            scenes = []
-            for sc in plan["scenes"]:
-                yield _sse("progress", f"[Agent 2] Generating image {sc['id']}/{len(plan['scenes'])}: \"{sc['text'][:45]}\"")
-                rendered = await asyncio.to_thread(agent2_visual.render_scenes, [sc], palette, out_dir, 0)
-                scenes.extend(rendered)
-
-            yield _sse("progress", "[Agent 3] Compositing the 9:16 reel: scenes + hook audio…")
-            video_path = await asyncio.to_thread(build_video, scenes, clip_path, req.song_title, None, "")
-            if video_path.startswith("error:"):
-                yield _sse("progress", f"[Agent 3] Reel render failed ({video_path[6:]}); images are still available")
-                video_path = ""
-
-            hook_line = lines[hook["first_line"]].text if hook.get("first_line") is not None else scenes[0]["text"]
-            pack = generate_instagram_pack(req.song_title, artist, preset["name"], hook_line, video_path)
+            hook_line = lines[hook["first_line"]].text if hook.get("first_line") is not None and lines else req.song_title
+            pack = generate_instagram_pack(req.song_title, artist, plan.get("mood", ""), hook_line, video_path)
 
             result = {
                 "agent1": {
@@ -200,19 +205,14 @@ async def process_pipeline(req: ProcessRequest):
                     "audio_clip": _url(clip_path),
                 },
                 "agent2": {
-                    "style": plan["style"],
+                    "mood": plan.get("mood", ""),
+                    "meaning": plan.get("meaning", ""),
+                    "style": {"palette": plan["palette"], "mood": plan.get("mood", "")},
                     "source": plan["source"],
-                    "scenes": [
-                        {
-                            "id": s["id"], "text": s["text"], "start": s["start"], "end": s["end"],
-                            "duration": s["duration"], "prompt": s["prompt"],
-                            "image_url": _url(s["image_path"]), "image_source": s["image_source"],
-                            "vibe_name": preset["name"],
-                        }
-                        for s in scenes
-                    ],
+                    "bpm": feats["bpm"],
+                    "scenes": _scenes_for_gallery(plan),
                 },
-                "agent3": {"video_url": _url(video_path) if video_path else "", **pack},
+                "agent3": {"video_url": _url(video_path), "resolution": "1080x1920", "fps": visual_renderer.FPS, **pack},
             }
             yield _sse("complete", "[Pipeline Complete] Your Instagram Reel is ready!", result)
         except Exception as e:
@@ -222,51 +222,33 @@ async def process_pipeline(req: ProcessRequest):
 
 
 class RegenerateRequest(BaseModel):
-    scenes: List[dict]          # from the last run: id, text, start, end, prompt
+    scenes: List[dict] = []     # accepted for compatibility; the plan comes from the last run
     vibe: str = "bollywood_drama"
     song_title: str = ""
     seed: int = 0               # 0 = pick a new random seed
-    audio_clip: str = ""        # agent1.audio_clip from the last run, to re-render the reel
+    audio_clip: str = ""        # agent1.audio_clip from the last run
 
 
 @app.post("/api/regenerate")
 async def regenerate_visuals(req: RegenerateRequest):
-    """Same lyrics, same prompts, brand-new images (new seed), reel re-rendered."""
-    preset = agent2_visual.VIBE_PRESETS.get(req.vibe, agent2_visual.VIBE_PRESETS[agent2_visual.DEFAULT_VIBE])
+    """Same clip and look, new seed: particles, rings and light paths change, and the reel is re-rendered."""
 
     async def regen_stream():
         try:
-            seed = req.seed if req.seed > 0 else random.randint(1, 999_999)
-            scenes_in = []
-            for i, s in enumerate(req.scenes):
-                text = str(s.get("text", ""))
-                scenes_in.append({
-                    "id": int(s.get("id", i + 1)), "text": text,
-                    "start": float(s["start"]), "end": float(s["end"]),
-                    "prompt": s.get("prompt") or f"{text}, {preset['style_suffix']}",
-                })
-            out_dir = os.path.join(agent2_visual.IMAGES_DIR, _slug(req.song_title))
-            scenes = []
-            for sc in scenes_in:
-                yield _sse("progress", f"[Agent 2] New image for \"{sc['text'][:45]}\" (seed {seed})")
-                scenes.extend(await asyncio.to_thread(agent2_visual.regenerate_storyboard, [sc], preset["palette"], out_dir, seed))
-
-            video_url = ""
             clip_file = os.path.join(OUTPUTS_DIR, "audio", os.path.basename(req.audio_clip)) if req.audio_clip else ""
-            if clip_file and os.path.exists(clip_file):
-                yield _sse("progress", "[Agent 3] Re-rendering the reel with the new visuals…")
-                out = await asyncio.to_thread(build_video, scenes, clip_file, req.song_title, None, f"_s{seed}")
-                if out.startswith("error:"):
-                    yield _sse("progress", f"[Agent 3] Reel render failed ({out[6:]})")
-                else:
-                    video_url = _url(out)
-
+            if not clip_file or not os.path.exists(clip_file):
+                yield _sse("error", "Regeneration error: the clip for this reel is no longer available - process the song again.")
+                return
+            seed = req.seed if req.seed > 0 else random.randint(1, 999_999)
+            yield _sse("progress", f"[Agent 3] New visual variation (seed {seed}) for the same clip and mood…")
+            feats = await asyncio.to_thread(analyze_audio, clip_file)
+            plan = LAST_PLANS.get(os.path.basename(clip_file)) or visual_director.heuristic_plan(feats["duration"], feats)
+            out = os.path.join(VIDEOS_DIR, f"{_slug(req.song_title)}_reel_s{seed}.mp4")
+            video_path = await asyncio.to_thread(visual_renderer.render_reel, clip_file, plan, out, seed, feats)
             yield _sse("complete", "Regeneration complete - new visuals ready!", {
                 "seed": seed,
-                "scenes": [{"id": s["id"], "text": s["text"], "start": s["start"], "end": s["end"],
-                            "duration": s["duration"], "prompt": s["prompt"], "image_url": _url(s["image_path"]),
-                            "image_source": s["image_source"], "vibe_name": preset["name"]} for s in scenes],
-                "video_url": video_url,
+                "scenes": _scenes_for_gallery(plan),
+                "video_url": _url(video_path),
             })
         except Exception as e:
             yield _sse("error", f"Regeneration error: {type(e).__name__}: {e}")
