@@ -211,3 +211,14 @@ def test_search_endpoint_reports_errors_and_returns_items(monkeypatch):
                         lambda self, q, max_results=8: [{"title": "Parvati", "channel": "C", "duration": 200, "url": "u", "video_id": "abc", "thumbnail": ""}])
     r = client.get("/api/search", params={"q": "parvati"})
     assert r.status_code == 200 and r.json()["results"][0]["video_id"] == "abc"
+
+
+def test_ffmpeg_found_from_env_location_when_not_on_path(tmp_path, monkeypatch):
+    import shutil as _sh
+    from backend import ffmpeg_setup
+    (tmp_path / "ffmpeg").write_text("x"); (tmp_path / "ffprobe").write_text("x")
+    monkeypatch.setattr(_sh, "which", lambda name: None)
+    monkeypatch.setenv("FFMPEG_LOCATION", str(tmp_path))
+    monkeypatch.setenv("PATH", "/nonexistent")
+    assert ffmpeg_setup.ensure_ffmpeg() == str(tmp_path)
+    assert os.environ["PATH"].startswith(str(tmp_path))

@@ -45,6 +45,7 @@ from backend.claude_agents import MAX_SCENES  # noqa: E402
 from backend.agent1_extractor import RealAudioExtractorAgent  # noqa: E402
 from backend.agent3_composer import VIDEOS_DIR, build_video, generate_instagram_pack  # noqa: E402
 from backend.lyrics import Line, approximate_timing, fetch_lyrics, transcribe_clip  # noqa: E402
+from backend.ffmpeg_setup import INSTALL_HELP, ensure_ffmpeg  # noqa: E402
 
 app = FastAPI(title="Daily Content Creation Agent", version="2.1")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -85,6 +86,7 @@ def health():
         "claude_enabled": claude_agents.available(),
         "model": claude_agents.MODEL,
         "image_source": "Pollinations.ai (free) with an offline procedural fallback",
+        "ffmpeg": bool(ensure_ffmpeg()),
         "author": "Bhagirath Argade",
     }
 
@@ -116,6 +118,9 @@ async def process_pipeline(req: ProcessRequest):
 
     async def event_stream():
         try:
+            if ensure_ffmpeg() is None:
+                yield _sse("error", INSTALL_HELP)
+                return
             agent1 = RealAudioExtractorAgent()
 
             yield _sse("progress", "[Agent 1] Downloading the song's audio from YouTube…")

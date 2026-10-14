@@ -15,6 +15,14 @@ if sys.platform == "win32":
 
 if __name__ == "__main__":
     import uvicorn
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from backend.ffmpeg_setup import INSTALL_HELP, ensure_ffmpeg
+
+    ffmpeg_dir = ensure_ffmpeg()
+    print("ffmpeg:", ffmpeg_dir or "NOT FOUND")
+    if not ffmpeg_dir:
+        print(INSTALL_HELP)
     print("=" * 62)
     print("  Daily Content Creation Agent v2.0 -- Real AI Pipeline")
     print("  Author: Bhagirath Argade")
